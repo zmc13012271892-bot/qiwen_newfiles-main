@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Design Tokens ─────────────────────────────────── */
+:root {
+  /* Background layers */
+  --bg-base:      #0a0a0f;
+  --bg-surface:   #111118;
+  --bg-surface2:  #16161f;
+  --bg-surface3:  #1c1c28;
+  --bg-hover:     rgba(255, 255, 255, 0.04);
+  --bg-active:    rgba(200, 169, 110, 0.1);
+
+  /* Borders */
+  --border:       rgba(255, 255, 255, 0.07);
+  --border-md:    rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Text */
+  --text-primary:   #e8e6e0;
+  --text-secondary: #9b9890;
+  --text-tertiary:  #5a5855;
+  --text-disabled:  #3a3836;
+
+  /* Accent (gold) */
+  --accent:         #c8a96e;
+  --accent-dim:     #8b7355;
+  --accent-bg:      rgba(200, 169, 110, 0.1);
+  --accent-border:  rgba(200, 169, 110, 0.2);
+
+  /* Semantic */
+  --color-success: #52c97a;
+  --color-warning: #f0a742;
+  --color-danger:  #ff6b6b;
+  --color-info:    #4a9eff;
+  --color-purple:  #b88af0;
+
+  /* Typography */
+  --font-sans:  -apple-system, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Noto Serif SC', 'Georgia', 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* Sizing */
+  --sidebar-width: 220px;
+  --right-panel-width: 260px;
+  --titlebar-height: 40px;
+  --toolbar-height: 44px;
+  --tabbar-height: 36px;
+  --statusbar-height: 24px;
+
+  /* Easing */
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-sharp:    cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+}
+
+/* ── Reset ─────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Allow selection in editor */
+[contenteditable], input, textarea, .selectable {
+  user-select: text;
+}
+
+/* ── Scrollbars ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface3);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-md); }
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-surface3) transparent;
+}
+
+/* ── Focus ─────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(200, 169, 110, 0.5);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Selection ─────────────────────────────────────── */
+::selection {
+  background: rgba(200, 169, 110, 0.25);
+  color: var(--text-primary);
+}
+
+/* ── Typography utilities ──────────────────────────── */
+.font-serif { font-family: var(--font-serif) !important; }
+.font-mono  { font-family: var(--font-mono)  !important; }
+
+/* ── Layout ────────────────────────────────────────── */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Ambient background glow */
+.app-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 50%, rgba(200, 169, 110, 0.035) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 88% 15%, rgba(74, 158, 255, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 105%, rgba(184, 138, 240, 0.025) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Animations ────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes springIn {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ── Utility classes ───────────────────────────────── */
+.animate-fade-in     { animation: fadeIn 0.3s var(--ease-smooth) both; }
+.animate-slide-up    { animation: slideInUp 0.4s var(--ease-smooth) both; }
+.animate-slide-left  { animation: slideInLeft 0.4s var(--ease-smooth) both; }
+.animate-slide-right { animation: slideInRight 0.4s var(--ease-smooth) both; }
+.animate-scale-in    { animation: scaleIn 0.3s var(--ease-spring) both; }
+.animate-spring-in   { animation: springIn 0.5s var(--ease-spring) both; }
+
+.delay-50  { animation-delay: 50ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* ── Loading skeleton ──────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface2) 25%,
+    var(--bg-surface3) 50%,
+    var(--bg-surface2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Overlay ───────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ── Tooltip ───────────────────────────────────────── */
+.tooltip {
+  position: absolute;
+  background: var(--bg-surface3);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-md);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000;
+  animation: slideInDown 0.15s var(--ease-smooth);
+}
+
+/* ── Badge ─────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.badge-accent {
+  background: rgba(200, 169, 110, 0.12);
+  color: var(--accent);
+  border: 0.5px solid var(--accent-border);
+}
+.badge-success {
+  background: rgba(82, 201, 122, 0.1);
+  color: var(--color-success);
+}
+.badge-info {
+  background: rgba(74, 158, 255, 0.1);
+  color: var(--color-info);
+}
+
+/* ── Divider ───────────────────────────────────────── */
+.divider {
+  height: 0.5px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+/* ── Empty state ───────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.empty-state-icon {
+  font-size: 40px;
+  opacity: 0.4;
+}
+.empty-state-title {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.empty-state-desc {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  max-width: 240px;
+  line-height: 1.6;
+}
