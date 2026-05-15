@@ -148,8 +148,6 @@ const InlineSearch: React.FC<{ activeWorkspaceId: string | null }> = ({ activeWo
   // 实际显示的列表：有输入时显示搜索结果，无输入时显示最近文档
   const displayList = query.trim() ? results : recentDocs;
   const showDropdown = open;
-    setQuery(''); setResults([]); setOpen(false);
-  };
 
   return (
     <div style={{ padding: '0 8px 8px', position: 'relative' }}>
