@@ -41,8 +41,8 @@ const FloatingToolbar: React.FC<{ editor: any }> = ({ editor }) => {
   const sep = { width: 0.5, height: 18, background: 'rgba(255,255,255,0.15)', margin: '0 2px' } as React.CSSProperties;
 
   return (
-    <BubbleMenu editor={editor} tippyOptions={{ duration: 150, placement: 'top' }}
-      style={{
+    <BubbleMenu editor={editor} tippyOptions={{ duration: 150, placement: 'top' }}>
+      <div style={{
         display: 'flex', alignItems: 'center', gap: 2,
         padding: '4px 8px', background: '#1a1a28',
         border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 10,
@@ -85,6 +85,7 @@ const FloatingToolbar: React.FC<{ editor: any }> = ({ editor }) => {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+      </div>
     </BubbleMenu>
   );
 };
