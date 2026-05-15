@@ -116,11 +116,15 @@ const NAV_ITEMS: { id: View; label: string; icon: React.ReactNode; section: stri
 // ── 内联搜索组件 ──────────────────────────────────────────
 const InlineSearch: React.FC<{ activeWorkspaceId: string | null }> = ({ activeWorkspaceId }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const allDocs = useSelector((s: RootState) => s.documents.tree);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 点击搜索框时直接显示最近文档
+  const recentDocs = [...allDocs].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
 
   useEffect(() => {
     if (!query.trim() || !activeWorkspaceId) { setResults([]); return; }
@@ -138,6 +142,12 @@ const InlineSearch: React.FC<{ activeWorkspaceId: string | null }> = ({ activeWo
   const handleSelect = (doc: any) => {
     dispatch(openTab({ documentId: doc.id, title: doc.title }));
     dispatch(setView('workbench'));
+    setQuery(''); setResults([]); setOpen(false);
+  };
+
+  // 实际显示的列表：有输入时显示搜索结果，无输入时显示最近文档
+  const displayList = query.trim() ? results : recentDocs;
+  const showDropdown = open;
     setQuery(''); setResults([]); setOpen(false);
   };
 
@@ -176,7 +186,7 @@ const InlineSearch: React.FC<{ activeWorkspaceId: string | null }> = ({ activeWo
 
       {/* 搜索结果下拉 */}
       <AnimatePresence>
-        {open && query && (
+        {showDropdown && (
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -186,24 +196,43 @@ const InlineSearch: React.FC<{ activeWorkspaceId: string | null }> = ({ activeWo
               position: 'absolute', top: '100%', left: 8, right: 8,
               background: 'var(--bg-surface2)', border: '0.5px solid var(--border-md)',
               borderRadius: 10, overflow: 'hidden', zIndex: 200,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.4)', maxHeight: 280, overflowY: 'auto',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)', maxHeight: 280, overflowY: 'auto' as const,
             }}
           >
-            {results.length === 0 && !loading ? (
-              <div style={{ padding: '20px 14px', fontSize: 12.5, color: 'var(--text-tertiary)', textAlign: 'center' }}>
+            {!query.trim() && (
+              <div style={{ padding: '8px 14px 4px', fontSize: 11, color: 'var(--text-tertiary)',
+                letterSpacing: '0.8px', textTransform: 'uppercase' as const }}>
+                最近编辑
+              </div>
+            )}
+            {loading && (
+              <div style={{ padding: '12px 14px', fontSize: 12.5, color: 'var(--text-tertiary)', textAlign: 'center' as const }}>
+                搜索中...
+              </div>
+            )}
+            {!loading && query.trim() && displayList.length === 0 && (
+              <div style={{ padding: '20px 14px', fontSize: 12.5, color: 'var(--text-tertiary)', textAlign: 'center' as const }}>
                 未找到「{query}」相关文档
               </div>
-            ) : results.map(doc => (
+            )}
+            {!loading && !query.trim() && displayList.length === 0 && (
+              <div style={{ padding: '20px 14px', fontSize: 12.5, color: 'var(--text-tertiary)', textAlign: 'center' as const }}>
+                还没有文档，新建一篇开始写作
+              </div>
+            )}
+            {!loading && displayList.map((doc: any) => (
               <div key={doc.id} onMouseDown={() => handleSelect(doc)}
                 style={{ padding: '9px 14px', cursor: 'pointer', transition: 'background 0.1s' }}
                 onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 2 }}>{doc.title || '无标题'}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  {doc.title || '无标题'}
+                </div>
                 {doc.content && (
                   <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.content.slice(0, 60)}
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {doc.content.replace(/<[^>]+>/g, '').slice(0, 60)}
                   </div>
                 )}
               </div>
