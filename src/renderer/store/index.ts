@@ -12,37 +12,27 @@ import pluginsReducer from './slices/pluginsSlice';
 import aiReducer from './slices/aiSlice';
 import authReducer from './slices/authSlice';
 
+// app只持久化侧边栏开关和活跃工作区，tabs/activeView每次重置
 const appPersistConfig = {
   key: 'qiwen-app',
   storage,
-  // 只持久化侧边栏状态和活跃工作区，不持久化tabs（避免启动时残留上次标签页）
-  whitelist: ['sidebarOpen', 'activeWorkspaceId', 'activeView'],
+  whitelist: ['sidebarOpen', 'activeWorkspaceId'],
 };
-
-const persistConfig = {
-  key: 'qiwen-root',
-  storage,
-  whitelist: ['settings'],
-};
-
-const persistedApp = persistReducer(appPersistConfig, appReducer);
 
 const rootReducer = combineReducers({
-  app: persistedApp,
+  app: persistReducer(appPersistConfig, appReducer),
   documents: documentsReducer,
   workspaces: workspacesReducer,
   editor: editorReducer,
-  settings: settingsReducer,
+  settings: persistReducer({ key: 'qiwen-settings', storage }, settingsReducer),
   references: referencesReducer,
   plugins: pluginsReducer,
   ai: aiReducer,
   auth: authReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
-
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
