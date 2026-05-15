@@ -310,3 +310,196 @@ body {
   max-width: 240px;
   line-height: 1.6;
 }
+
+/* ── Tiptap 富文本编辑器样式 ─────────────────────────── */
+.ProseMirror {
+  flex: 1;
+  height: 100%;
+  padding: 48px 64px 200px;
+  max-width: 760px;
+  margin: 0 auto;
+  outline: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.85;
+  caret-color: #c8a96e;
+}
+
+/* 空编辑器占位符 */
+.ProseMirror .is-editor-empty:first-child::before,
+.ProseMirror p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-tertiary);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* 标题 */
+.ProseMirror h1 {
+  font-size: 1.9em;
+  font-weight: 300;
+  font-family: var(--font-serif);
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  margin: 1.4em 0 0.5em;
+  line-height: 1.3;
+  border-bottom: 0.5px solid var(--border);
+  padding-bottom: 0.3em;
+}
+.ProseMirror h2 {
+  font-size: 1.45em;
+  font-weight: 400;
+  font-family: var(--font-serif);
+  color: var(--text-primary);
+  margin: 1.2em 0 0.4em;
+  line-height: 1.4;
+}
+.ProseMirror h3 {
+  font-size: 1.15em;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 1em 0 0.3em;
+}
+.ProseMirror h1:first-child,
+.ProseMirror h2:first-child,
+.ProseMirror h3:first-child { margin-top: 0; }
+
+/* 段落 */
+.ProseMirror p { margin: 0 0 0.75em; }
+
+/* 粗体/斜体 */
+.ProseMirror strong { color: var(--text-primary); font-weight: 600; }
+.ProseMirror em { color: #c8a96e; font-style: italic; }
+.ProseMirror u { text-decoration-color: rgba(200,169,110,0.6); }
+.ProseMirror s { color: var(--text-tertiary); }
+
+/* 高亮 */
+.ProseMirror mark {
+  background: rgba(200,169,110,0.2);
+  color: var(--text-primary);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+/* 行内代码 */
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: #b88af0;
+  background: rgba(184,138,240,0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 0.5px solid rgba(184,138,240,0.2);
+}
+
+/* 代码块 */
+.ProseMirror pre {
+  background: rgba(0,0,0,0.35);
+  border: 0.5px solid var(--border-md);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.ProseMirror pre code {
+  color: #e8e6e0;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.9em;
+  line-height: 1.7;
+}
+
+/* 引用 */
+.ProseMirror blockquote {
+  border-left: 3px solid #c8a96e;
+  padding: 4px 0 4px 20px;
+  margin: 1em 0;
+  color: var(--text-tertiary);
+  font-style: italic;
+  background: rgba(200,169,110,0.04);
+  border-radius: 0 6px 6px 0;
+}
+
+/* 链接 */
+.ProseMirror a {
+  color: #4a9eff;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(74,158,255,0.3);
+  transition: border-color 0.15s;
+}
+.ProseMirror a:hover { border-bottom-color: #4a9eff; }
+
+/* 列表 */
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.ProseMirror li { margin: 0.2em 0; }
+.ProseMirror li p { margin: 0; }
+.ProseMirror ul > li::marker { color: #c8a96e; }
+.ProseMirror ol > li::marker { color: #c8a96e; font-weight: 500; }
+
+/* 待办列表 */
+.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0; margin-top: 4px;
+}
+.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 14px; height: 14px; accent-color: #c8a96e;
+  cursor: pointer; border-radius: 3px;
+}
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--text-tertiary); text-decoration: line-through;
+}
+
+/* 分割线 */
+.ProseMirror hr {
+  border: none;
+  border-top: 0.5px solid var(--border-md);
+  margin: 1.5em 0;
+}
+
+/* 图片 */
+.ProseMirror img {
+  max-width: 100%; border-radius: 8px;
+  border: 0.5px solid var(--border);
+  margin: 0.5em 0;
+}
+
+/* 表格 */
+.ProseMirror table {
+  border-collapse: collapse; width: 100%;
+  margin: 1em 0; font-size: 0.95em;
+}
+.ProseMirror th, .ProseMirror td {
+  border: 0.5px solid var(--border-md);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 80px;
+}
+.ProseMirror th {
+  background: var(--bg-surface2);
+  font-weight: 500; color: var(--text-primary);
+  font-size: 0.88em; letter-spacing: 0.3px;
+}
+.ProseMirror td { background: var(--bg-surface); }
+.ProseMirror tr:hover td { background: var(--bg-hover); }
+
+/* 选中文字 */
+.ProseMirror ::selection {
+  background: rgba(200,169,110,0.25);
+}
+
+/* 光标所在行 */
+.ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid rgba(200,169,110,0.4);
+  border-radius: 4px;
+}
