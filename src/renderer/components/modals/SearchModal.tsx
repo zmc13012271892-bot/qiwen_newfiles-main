@@ -59,12 +59,11 @@ export const SearchModal: React.FC = () => {
             exit={{ opacity: 0, y: -20, scale: 0.96 }}
             transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
             style={{
-              position: 'fixed', top: 160, left: '50%', transform: 'translateX(-50%)',
+              position: 'fixed', top: 160,
+              left: '50%', transform: 'translateX(-50%)',
               width: 580, background: 'var(--bg-surface2)',
               border: '0.5px solid var(--border-md)', borderRadius: 14, overflow: 'hidden',
               boxShadow: '0 24px 80px rgba(0,0,0,0.6)', zIndex: 501,
-              marginLeft: -290,  // 精确居中，不依赖transform
-              left: 'calc(50% - 290px)', transform: 'none',
             }}
           >
             {/* Search input */}
