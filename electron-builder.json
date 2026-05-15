@@ -29,18 +29,10 @@
     "darkModeSupport": true,
     "target": [
       {
-        "target": "dmg",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
+        "target": "dmg"
       },
       {
-        "target": "zip",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
+        "target": "zip"
       }
     ],
     "extendInfo": {
@@ -57,7 +49,7 @@
     }
   },
   "dmg": {
-    "title": "启文 ${version}",
+    "title": "QiWen ${version}",
     "icon": "assets/icon.icns",
     "iconSize": 128,
     "window": {
@@ -141,7 +133,7 @@
     ]
   },
   "publish": null,
-  "artifactName": "启文-${version}-${os}-${arch}.${ext}",
+  "artifactName": "QiWen-${version}-${os}-${arch}.${ext}",
   "extends": null,
   "extraMetadata": {
     "main": "electron/main.js"
