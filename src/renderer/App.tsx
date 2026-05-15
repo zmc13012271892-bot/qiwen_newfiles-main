@@ -407,9 +407,10 @@ const AppInner: React.FC = () => {
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
-    // 从DB读取onboardingDone，确保是最新值
-    const onboarded = await ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' });
-    const isOnboarded = !!onboarded;
+    // 多源读onboardingDone
+    let isOnboarded = false;
+    try { const d = await ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' }); if (d) isOnboarded = true; } catch {}
+    try { if (localStorage.getItem('qiwen_onboarding_done') === '1') isOnboarded = true; } catch {}
     setOnboardingDone(isOnboarded);
 
     // 先尝试刷新token（已登录用户）
@@ -538,7 +539,14 @@ const AppInner: React.FC = () => {
             transition={{ duration: 0.4 }}
             style={{ flex: 1, height: '100vh' }}
           >
-            <AuthPage />
+            <AuthPage onOffline={async () => {
+              dispatch({ type: 'auth/setLocalMode' });
+              let done = false;
+              try { const d = await ipc.invoke('settings:get', { key: 'onboardingDone' }); if (d) done = true; } catch {}
+              try { if (localStorage.getItem('qiwen_onboarding_done') === '1') done = true; } catch {}
+              setOnboardingDone(done);
+              setStage(done ? 'app' : 'onboarding');
+            }} />
           </motion.div>
         )}
 
@@ -552,8 +560,8 @@ const AppInner: React.FC = () => {
             style={{ flex: 1, height: '100vh' }}
           >
             <OnboardingPage onComplete={async () => {
-              // 双重保存确保下次启动时能读到
-              await ipc.invoke('settings:set', { key: 'onboardingDone', value: true });
+              try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
+              try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
               setOnboardingDone(true);
               setStage('app');
             }} />
@@ -587,7 +595,7 @@ const AppInner: React.FC = () => {
               <MainContent />
             </div>
             <StatusBar />
-            <UserAccountBar />
+
             <Notification />
             <SearchModal />
           </motion.div>
