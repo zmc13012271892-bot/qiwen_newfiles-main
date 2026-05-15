@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { undo, redo } from '@codemirror/commands';
 import { RootState, AppDispatch } from '../../store';
@@ -15,8 +14,7 @@ interface ToolbarButtonProps {
 }
 
 const ToolbarBtn: React.FC<ToolbarButtonProps> = ({ onClick, active, title, children, label }) => (
-  <motion.button
-    whileTap={{ scale: 0.92 }}
+  <button
     onClick={onClick}
     title={title}
     style={{
@@ -32,11 +30,11 @@ const ToolbarBtn: React.FC<ToolbarButtonProps> = ({ onClick, active, title, chil
       boxShadow: active ? 'inset 0 0 0 1px rgba(200,169,110,0.3)' : 'none',
     }}
     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface3)'; }}
-    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = active ? 'rgba(200,169,110,0.15)' : 'transparent'; }}
   >
     {children}
     {label && <span>{label}</span>}
-  </motion.button>
+  </button>
 );
 
 const Divider = () => (
@@ -272,6 +270,3 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
     </div>
   );
 };
-
-// toggleRightPanel 补充导入
-function toggleRightPanel() { return { type: 'app/toggleRightPanel' }; }
