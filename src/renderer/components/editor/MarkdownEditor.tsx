@@ -1,9 +1,21 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { EditorView, keymap, lineNumbers, drawSelection, dropCursor, rectangularSelection, highlightActiveLine } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { oneDark } from '@codemirror/theme-one-dark';
+import React, { useEffect, useRef } from 'react';
+import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Typography from '@tiptap/extension-typography';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Highlight from '@tiptap/extension-highlight';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import TextStyle from '@tiptap/extension-text-style';
+import CharacterCount from '@tiptap/extension-character-count';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { updateStats, updateCursor } from '../../store/slices/editorSlice';
@@ -17,156 +29,151 @@ interface MarkdownEditorProps {
   onContentChange?: (content: string) => void;
 }
 
-const themeExtension = EditorView.theme({
-  '&': {
-    height: '100%',
-    fontSize: '15px',
-    background: 'transparent !important',
-    color: 'var(--text-secondary)',
-  },
-  '.cm-scroller': {
-    fontFamily: 'var(--font-sans)',
-    lineHeight: '1.85',
-    padding: '48px 64px',
-    overflow: 'auto',
-  },
-  '.cm-content': {
-    maxWidth: '660px',
-    margin: '0 auto',
-    caretColor: '#c8a96e',
-    padding: '0 0 200px',
-  },
-  '.cm-line': { padding: '0' },
-  '.cm-focused': { outline: 'none' },
-  '.cm-cursor': { borderLeftColor: '#c8a96e', borderLeftWidth: '2px' },
-  '.cm-selectionBackground': { background: 'rgba(200,169,110,0.2) !important' },
-  '&.cm-focused .cm-selectionBackground': { background: 'rgba(200,169,110,0.25) !important' },
-  '.cm-activeLine': { background: 'rgba(255,255,255,0.02) !important' },
-  '.cm-gutters': { background: 'transparent', border: 'none', color: 'var(--text-tertiary)', minWidth: '40px' },
-  '.cm-lineNumbers .cm-gutterElement': { padding: '0 12px 0 4px', fontSize: '12px' },
-  // Markdown styling
-  '.cm-header-1, .tok-heading1': { color: '#e8e6e0 !important', fontSize: '1.6em', fontWeight: '300', fontFamily: 'var(--font-serif)', letterSpacing: '-0.3px' },
-  '.cm-header-2, .tok-heading2': { color: '#e0ddd6 !important', fontSize: '1.3em', fontWeight: '400', fontFamily: 'var(--font-serif)' },
-  '.cm-header-3, .tok-heading3': { color: '#d4d1c8 !important', fontSize: '1.1em', fontWeight: '500' },
-  '.cm-strong, .tok-strong': { color: '#e8e6e0 !important', fontWeight: '600' },
-  '.cm-em, .tok-emphasis': { color: '#c8a96e !important', fontStyle: 'italic' },
-  '.cm-link, .tok-link': { color: '#4a9eff !important' },
-  '.cm-url, .tok-url': { color: '#4a9eff !important', opacity: 0.7 },
-  '.cm-quote, .tok-quote': { color: '#9b9890 !important', borderLeft: '2px solid #c8a96e', paddingLeft: '12px' },
-  '.cm-code, .tok-monospace': { fontFamily: 'var(--font-mono)', fontSize: '0.9em', color: '#b88af0 !important', background: 'rgba(184,138,240,0.08)', padding: '1px 4px', borderRadius: '3px' },
-  '.cm-hr': { color: 'var(--border-md) !important' },
-}, { dark: true });
+const FloatingToolbar: React.FC<{ editor: any }> = ({ editor }) => {
+  const btn = (active: boolean): React.CSSProperties => ({
+    padding: '4px 8px', border: 'none', borderRadius: 5,
+    background: active ? 'rgba(200,169,110,0.25)' : 'transparent',
+    color: active ? '#c8a96e' : '#e8e6e0',
+    cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400,
+    transition: 'all 0.1s', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', minWidth: 28, height: 28,
+  });
+  const sep = { width: 0.5, height: 18, background: 'rgba(255,255,255,0.15)', margin: '0 2px' } as React.CSSProperties;
 
-function countWordsAndChars(text: string) {
-  const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
-  const en = (text.match(/\b[a-zA-Z]+\b/g) || []).length;
-  return { wordCount: cn + en, charCount: text.length };
-}
+  return (
+    <BubbleMenu editor={editor} tippyOptions={{ duration: 150, placement: 'top' }}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 2,
+        padding: '4px 8px', background: '#1a1a28',
+        border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 10,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)',
+      }}>
+      <button style={btn(editor.isActive('bold'))} title="加粗 Ctrl+B"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }}>
+        <strong>B</strong></button>
+      <button style={btn(editor.isActive('italic'))} title="斜体 Ctrl+I"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }}>
+        <em>I</em></button>
+      <button style={btn(editor.isActive('underline'))} title="下划线 Ctrl+U"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }}>
+        <span style={{ textDecoration: 'underline' }}>U</span></button>
+      <button style={btn(editor.isActive('strike'))} title="删除线"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }}>
+        <span style={{ textDecoration: 'line-through' }}>S</span></button>
+      <button style={btn(editor.isActive('highlight'))} title="高亮"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHighlight().run(); }}>
+        ✦</button>
+      <div style={sep} />
+      <button style={btn(editor.isActive('heading', { level: 1 }))} title="标题1"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }}>
+        H1</button>
+      <button style={btn(editor.isActive('heading', { level: 2 }))} title="标题2"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }}>
+        H2</button>
+      <div style={sep} />
+      <button style={btn(editor.isActive('code'))} title="行内代码"
+        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCode().run(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+      <button style={btn(editor.isActive('link'))} title="链接"
+        onMouseDown={e => {
+          e.preventDefault();
+          const url = window.prompt('输入链接地址：');
+          if (url) editor.chain().focus().setLink({ href: url }).run();
+          else editor.chain().focus().unsetLink().run();
+        }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+    </BubbleMenu>
+  );
+};
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, readOnly = false, onContentChange }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const editorRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  const lineNumbersCompartment = useRef(new Compartment());
-  const showLineNumbers = useSelector((s: RootState) => s.settings.showLineNumbers);
   const doc = useSelector((s: RootState) => s.documents.openDocuments[documentId]);
-  const isInitialized = useRef(false);
+  const initialized = useRef(false);
+  const lastHtml = useRef('');
 
-  const handleChange = useCallback((content: string) => {
-    const { wordCount, charCount } = countWordsAndChars(content);
-    dispatch(updateStats({ wordCount, charCount }));
-    dispatch(setDocumentContent({ id: documentId, content }));
-    dispatch(markTabDirty({ id: documentId, dirty: true }));
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Placeholder.configure({ placeholder: '开始写作...', emptyEditorClass: 'is-editor-empty' }),
+      Typography,
+      Underline,
+      Highlight,
+      TextStyle,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Link.configure({ openOnClick: false }),
+      Image,
+      Table.configure({ resizable: true }),
+      TableRow, TableHeader, TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      CharacterCount,
+    ],
+    content: '',
+    editable: !readOnly,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      if (html === lastHtml.current) return;
+      lastHtml.current = html;
+      const text = editor.getText();
+      const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+      const en = (text.match(/\b[a-zA-Z]+\b/g) || []).length;
+      dispatch(updateStats({ wordCount: cn + en, charCount: text.length }));
+      dispatch(setDocumentContent({ id: documentId, content: html }));
+      dispatch(markTabDirty({ id: documentId, dirty: true }));
+      autoSave.schedule(documentId, html);
+      onContentChange?.(html);
+    },
+  });
 
-    autoSave.schedule(documentId, content);
-    onContentChange?.(content);
-  }, [documentId, dispatch, onContentChange]);
-
+  // 暴露给工具栏
   useEffect(() => {
-    if (!editorRef.current || isInitialized.current) return;
-    isInitialized.current = true;
-
-    const extensions = [
-      history(),
-      drawSelection(),
-      dropCursor(),
-      rectangularSelection(),
-      highlightActiveLine(),
-      lineNumbersCompartment.current.of(showLineNumbers ? lineNumbers() : []),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-      markdown({ base: markdownLanguage }),
-      oneDark,
-      themeExtension,
-      EditorView.lineWrapping,
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          handleChange(update.state.doc.toString());
-        }
-        if (update.selectionSet) {
-          const sel = update.state.selection.main;
-          const line = update.state.doc.lineAt(sel.head);
-          dispatch(updateCursor({ line: line.number, col: sel.head - line.from + 1 }));
-        }
-      }),
-      EditorState.readOnly.of(readOnly),
-      EditorView.focusChangeEffect.of((_, focusing) => {
-        if (focusing) {
-          (window as any).__activeEditor = viewRef.current;
-        } else {
-          autoSave.flush(documentId);
-        }
-        return null;
-      }),
-    ];
-
-    const state = EditorState.create({
-      doc: doc?.content || '',
-      extensions,
-    });
-
-    viewRef.current = new EditorView({ state, parent: editorRef.current });
-
-    // 暴露给工具栏使用（按文档ID索引，支持多标签页）
-    (window as any).__activeEditor = viewRef.current;
+    if (!editor) return;
+    (window as any).__activeEditor = editor;
     (window as any).__editors = (window as any).__editors || {};
-    (window as any).__editors[documentId] = viewRef.current;
-
-    // Initial word count
-    const { wordCount, charCount } = countWordsAndChars(doc?.content || '');
-    dispatch(updateStats({ wordCount, charCount }));
-
+    (window as any).__editors[documentId] = editor;
     return () => {
       if ((window as any).__editors) delete (window as any).__editors[documentId];
-      if ((window as any).__activeEditor === viewRef.current) (window as any).__activeEditor = null;
-      viewRef.current?.destroy();
-      viewRef.current = null;
-      isInitialized.current = false;
+      if ((window as any).__activeEditor === editor) (window as any).__activeEditor = null;
     };
-  }, [documentId]); // eslint-disable-line
+  }, [editor, documentId]);
 
-  // Sync external content changes (e.g., from another device)
+  // 初始化内容
   useEffect(() => {
-    if (!viewRef.current || !doc) return;
-    const currentContent = viewRef.current.state.doc.toString();
-    if (currentContent !== doc.content) {
-      viewRef.current.dispatch({
-        changes: { from: 0, to: currentContent.length, insert: doc.content },
-      });
-    }
+    if (!editor || initialized.current || !doc) return;
+    initialized.current = true;
+    editor.commands.setContent(doc.content || '', false);
+    lastHtml.current = doc.content || '';
+    const text = editor.getText();
+    const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const en = (text.match(/\b[a-zA-Z]+\b/g) || []).length;
+    dispatch(updateStats({ wordCount: cn + en, charCount: text.length }));
+  }, [editor, doc, dispatch]);
+
+  // 外部内容同步
+  useEffect(() => {
+    if (!editor || !doc?.content || doc.content === lastHtml.current) return;
+    editor.commands.setContent(doc.content, false);
+    lastHtml.current = doc.content;
   }, [doc?.content]); // eslint-disable-line
 
-  // Update line numbers
+  // 失焦保存
   useEffect(() => {
-    if (!viewRef.current) return;
-    viewRef.current.dispatch({
-      effects: lineNumbersCompartment.current.reconfigure(showLineNumbers ? lineNumbers() : []),
-    });
-  }, [showLineNumbers]);
+    if (!editor) return;
+    const handleBlur = () => autoSave.flush(documentId);
+    editor.on('blur', handleBlur);
+    return () => { editor.off('blur', handleBlur); };
+  }, [editor, documentId]);
+
+  if (!editor) return null;
 
   return (
-    <div
-      ref={editorRef}
-      style={{ flex: 1, overflow: 'hidden', height: '100%', position: 'relative' }}
-    />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+      <FloatingToolbar editor={editor} />
+      <EditorContent editor={editor} style={{ flex: 1, overflow: 'auto', height: '100%' }} />
+    </div>
   );
 };
