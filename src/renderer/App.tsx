@@ -442,6 +442,13 @@ const AppInner: React.FC = () => {
     }
   }, [isAuthenticated, isLocalMode, dispatch]);
 
+  // 退出登录 → 跳回登录页
+  useEffect(() => {
+    if (!isAuthenticated && !isLocalMode && stage === 'app') {
+      setStage('auth');
+    }
+  }, [isAuthenticated, isLocalMode, stage]);
+
   // Auth success → 保存本地账号 + 检查onboarding
   useEffect(() => {
     if ((isAuthenticated || isLocalMode) && stage === 'auth') {
