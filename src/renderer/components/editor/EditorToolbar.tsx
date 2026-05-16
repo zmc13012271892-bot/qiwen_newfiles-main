@@ -254,10 +254,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
         <Sep />
 
         {/* 对齐 */}
-        <Btn title="左对齐" active={is({textAlign:'left'})} onClick={() => cmd(c => c.setTextAlign('left').run())}>{alignIcon('left')}</Btn>
-        <Btn title="居中" active={is({textAlign:'center'})} onClick={() => cmd(c => c.setTextAlign('center').run())}>{alignIcon('center')}</Btn>
-        <Btn title="右对齐" active={is({textAlign:'right'})} onClick={() => cmd(c => c.setTextAlign('right').run())}>{alignIcon('right')}</Btn>
-        <Btn title="两端对齐" active={is({textAlign:'justify'})} onClick={() => cmd(c => c.setTextAlign('justify').run())}>{alignIcon('justify')}</Btn>
+        <Btn title="左对齐" active={e?.isActive({ textAlign: 'left' }) ?? false} onClick={() => cmd(c => c.setTextAlign('left').run())}>{alignIcon('left')}</Btn>
+        <Btn title="居中" active={e?.isActive({ textAlign: 'center' }) ?? false} onClick={() => cmd(c => c.setTextAlign('center').run())}>{alignIcon('center')}</Btn>
+        <Btn title="右对齐" active={e?.isActive({ textAlign: 'right' }) ?? false} onClick={() => cmd(c => c.setTextAlign('right').run())}>{alignIcon('right')}</Btn>
+        <Btn title="两端对齐" active={e?.isActive({ textAlign: 'justify' }) ?? false} onClick={() => cmd(c => c.setTextAlign('justify').run())}>{alignIcon('justify')}</Btn>
 
         <Sep />
 
