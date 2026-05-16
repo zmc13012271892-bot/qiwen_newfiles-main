@@ -35,13 +35,24 @@ async function initDB() {
 
 // ── 窗口创建 ──────────────────────────────────────────────
 function createWindow() {
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+
   mainWindow = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 900, minHeight: 600,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    width: 1280,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    center: true,
+    maximizable: true,
+    fullscreenable: true,
+    // Windows上明确禁止启动时最大化
+    ...(isWin ? { resizable: true } : {}),
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 12 },
     backgroundColor: '#0a0a0f',
-    vibrancy: process.platform === 'darwin' ? 'sidebar' : undefined,
-    frame: process.platform !== 'win32',
+    vibrancy: isMac ? 'sidebar' : undefined,
+    frame: !isWin,
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -59,7 +70,10 @@ function createWindow() {
 
   mainWindow.loadURL(startURL);
   mainWindow.once('ready-to-show', () => {
+    // 确保不是最大化状态再显示
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
     mainWindow.show();
+    mainWindow.center();
     if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
   mainWindow.on('closed', () => { mainWindow = null; });
