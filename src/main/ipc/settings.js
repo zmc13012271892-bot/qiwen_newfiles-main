@@ -27,10 +27,10 @@ function registerSettingsHandlers() {
   ipcMain.handle('settings:set', (_, { key, value }) => {
     const db = getDb();
     const now = Date.now();
-    db.prepare(`
-      INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run([key, JSON.stringify(value), now]);
+    const valueStr = JSON.stringify(value);
+    // 先删后插，避免ON CONFLICT在某些sql.js版本不兼容
+    db.prepare('DELETE FROM app_settings WHERE key = ?').run([key]);
+    db.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)').run([key, valueStr, now]);
     saveDatabase();
     return { success: true };
   });
@@ -38,22 +38,22 @@ function registerSettingsHandlers() {
   ipcMain.handle('settings:set-many', (_, { settings }) => {
     const db = getDb();
     const now = Date.now();
-    const stmt = db.prepare(`
-      INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `);
     db.run('BEGIN TRANSACTION');
     try {
+      const delStmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
+      const insStmt = db.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)');
       for (const [key, value] of Object.entries(settings)) {
-        stmt.run([key, JSON.stringify(value), now]);
+        delStmt.run([key]);
+        insStmt.run([key, JSON.stringify(value), now]);
       }
+      delStmt.free();
+      insStmt.free();
       db.run('COMMIT');
       saveDatabase();
     } catch (err) {
       db.run('ROLLBACK');
       throw err;
     }
-    stmt.free();
     return { success: true };
   });
 

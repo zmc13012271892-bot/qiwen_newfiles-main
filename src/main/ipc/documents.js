@@ -88,10 +88,8 @@ function registerDocumentHandlers() {
       }
 
       if (content !== undefined) {
-        db.prepare(`
-          INSERT INTO document_contents (document_id, content, updated_at) VALUES (?, ?, ?)
-          ON CONFLICT(document_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
-        `).run([id, content, now]);
+        db.prepare('DELETE FROM document_contents WHERE document_id = ?').run([id]);
+        db.prepare('INSERT INTO document_contents (document_id, content, updated_at) VALUES (?, ?, ?)').run([id, content, now]);
 
         // Auto-save version every 5 minutes
         const versionStmt = db.prepare(`
