@@ -14,7 +14,7 @@ interface AppState {
   activeWorkspaceId: string | null;
   sidebarOpen: boolean;
   rightPanelOpen: boolean;
-  rightPanelTab: 'outline' | 'stats' | 'ai';
+  rightPanelTab: 'outline' | 'stats' | 'ai' | 'plugins';
   focusMode: boolean;
   tabs: Tab[];
   activeTabId: string | null;
