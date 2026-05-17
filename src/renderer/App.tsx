@@ -12,6 +12,8 @@ import { fetchDocuments, createDocument, deleteDocument } from './store/slices/d
 import { fetchReferences, createReference, deleteReference } from './store/slices/referencesSlice';
 import { openTab, setView } from './store/slices/appSlice';
 import { ipc } from './utils/ipc';
+import { autoSave } from './utils/autoSave';
+import { setSaving } from './store/slices/documentsSlice';
 
 import { SplashScreen } from './components/auth/SplashScreen';
 import { AuthPage } from './components/auth/AuthPage';
@@ -31,11 +33,26 @@ type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
 
 // ── 检查 onboardingDone 的统一函数 ───────────────────────
 // 同时检查 ipc settings 和 localStorage，任意一个为 true 即认为已完成
-async function checkOnboardingDone(): Promise<boolean> {
+function checkOnboardingDone(): boolean {
+  // 优先读 localStorage（同步、始终可用，不依赖数据库初始化）
+  try {
+    if (localStorage.getItem('qiwen_onboarding_done') === '1') return true;
+  } catch {}
+  return false;
+}
+
+// 异步从 ipc 补充检查（用于 splash 后的二次验证）
+async function checkOnboardingDoneAsync(): Promise<boolean> {
+  // 先同步检查
+  if (checkOnboardingDone()) return true;
+  // 再异步检查 ipc（DB里可能有）
   try {
     const d = await ipc.invoke<any>('settings:get', { key: 'onboardingDone' });
-    // ipc 返回 JSON.parse 后的值，true / "true" / 1 都视为已完成
-    if (d === true || d === 'true' || d === 1) return true;
+    if (d === true || d === 'true' || d === 1) {
+      // 同步写入 localStorage 作为缓存
+      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
+      return true;
+    }
   } catch {}
   return false;
 }
@@ -48,8 +65,10 @@ async function resetOnboardingDone(): Promise<void> {
 
 // ── 标记 onboardingDone 的统一函数 ──────────────────────
 async function markOnboardingDone(): Promise<void> {
-  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
+  // localStorage 先写（同步、立即生效）
   try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
+  // ipc 再写（异步，用于跨设备/数据库持久化）
+  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
 }
 
 // ── 文档库视图 ────────────────────────────────────────────
@@ -419,7 +438,7 @@ const AppInner: React.FC = () => {
 
     // 3. 没有任何账号
     if (!authed) {
-      const done = await checkOnboardingDone();
+      const done = await checkOnboardingDoneAsync();
       if (done) {
         // 做过引导但没有账号（清空了数据等极少数情况）→ 去登录页
         setStage('auth');
@@ -432,8 +451,21 @@ const AppInner: React.FC = () => {
     }
 
     // 4. 有账号 → 检查是否完成引导
-    const done = await checkOnboardingDone();
+    const done = await checkOnboardingDoneAsync();
     setStage(done ? 'app' : 'onboarding');
+  }, [dispatch]);
+
+  // 配置 autoSave：绑定保存状态到 Redux + 全局 beforeunload 兜底
+  useEffect(() => {
+    autoSave.configure({
+      interval: 1000,
+      onSave:  (id) => dispatch(setSaving({ id, saving: true })),
+      onSaved: (id) => dispatch(setSaving({ id, saving: false })),
+    });
+    // App 级别的兜底：窗口关闭前强制 flush 所有未保存内容
+    const handleBeforeUnload = () => { autoSave.flushAll(); };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [dispatch]);
 
   // 登录/本地模式后加载数据
@@ -473,7 +505,7 @@ const AppInner: React.FC = () => {
           }).catch(() => {});
         }
       }
-      checkOnboardingDone().then(done => {
+      checkOnboardingDoneAsync().then(done => {
         setStage(done ? 'app' : 'onboarding');
       });
     }
@@ -550,7 +582,7 @@ const AppInner: React.FC = () => {
           >
             <AuthPage onOffline={async () => {
               dispatch({ type: 'auth/setLocalMode' });
-              const done = await checkOnboardingDone();
+              const done = await checkOnboardingDoneAsync();
               setStage(done ? 'app' : 'onboarding');
             }} />
           </motion.div>
