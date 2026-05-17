@@ -54,10 +54,10 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
       // ── 根据职业初始化插件 ────────────────────────────────
       const professionPlugins = getPluginsForProfession(selectedProfession);
       dispatch(setPlugins(professionPlugins));
-      // ── 写入完成标记（两路确保可靠）─────────────────────
+      // ── 写入完成标记（localStorage 优先，立即同步生效）──
+      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
       try { await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme }); } catch {}
       try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
-      // 无论 ipc 是否成功，都继续
       onComplete();
     } catch (err) {
       console.error('Onboarding finish error:', err);
