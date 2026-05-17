@@ -5,6 +5,8 @@ import { AppDispatch } from '../../store';
 import { createWorkspace } from '../../store/slices/workspacesSlice';
 import type { ProfessionType } from '@shared/types';
 import { setActiveWorkspace, setView } from '../../store/slices/appSlice';
+import { setPlugins } from '../../store/slices/pluginsSlice';
+import { getPluginsForProfession } from '../../plugins/pluginRegistry';
 import { ipc } from '../../utils/ipc';
 
 const PROFESSIONS: { id: ProfessionType; icon: string; label: string; desc: string }[] = [
@@ -49,6 +51,10 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
         icon: PROFESSIONS.find(p => p.id === selectedProfession)?.icon || '📁',
       })).unwrap();
       dispatch(setActiveWorkspace(ws.id));
+      // ── 根据职业初始化插件 ──────────────────────────────
+      const professionPlugins = getPluginsForProfession(selectedProfession);
+      dispatch(setPlugins(professionPlugins));
+      // ────────────────────────────────────────────────────
       await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme });
       await ipc.invoke('settings:set', { key: 'onboardingDone', value: true });
       onComplete();
