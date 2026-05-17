@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../store';
-import { togglePlugin } from '../../store/slices/pluginsSlice';
+import { RootState, AppDispatch } from '../store';
+import { togglePlugin } from '../store/slices/pluginsSlice';
 import {
   FocusTimerPlugin,
   QuickNotePlugin,
