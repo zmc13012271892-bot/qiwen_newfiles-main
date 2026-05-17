@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { setPlugins, togglePlugin } from '../../store/slices/pluginsSlice';
 import { ALL_PLUGINS, getAvailablePlugins, PROFESSION_PLUGIN_MAP } from './pluginRegistry';
-import { Plugin, PluginCategory } from '../../../shared/types';
+import { Plugin, PluginCategory } from '../../shared/types';
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   research: '学术研究',
