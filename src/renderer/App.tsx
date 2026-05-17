@@ -440,10 +440,11 @@ const AppInner: React.FC = () => {
     if (!authed) {
       const done = await checkOnboardingDoneAsync();
       if (done) {
-        // 做过引导但没有账号（清空了数据等极少数情况）→ 去登录页
-        setStage('auth');
+        // 做过引导但会话丢失（重装/清缓存等）→ 直接以本地模式进入 app，不强制登录
+        dispatch(setLocalMode(undefined));
+        setStage('app');
       } else {
-        // 全新用户：直接跳引导页，无需强制登录
+        // 全新用户：直接跳引导页，无需登录
         dispatch(setLocalMode(undefined));
         setStage('onboarding');
       }
@@ -485,26 +486,10 @@ const AppInner: React.FC = () => {
     }
   }, [isAuthenticated, stage]);
 
-  // Auth 页登录成功 → 检查 onboarding
+  // Auth 页登录/注册成功 → 检查 onboarding
+  // onOffline 已经用 setTimeout 处理，不会触发这里
   useEffect(() => {
-    if ((isAuthenticated || isLocalMode) && stage === 'auth') {
-      // 持久化本地账号
-      if (isLocalMode) {
-        const authState = store.getState().auth as any;
-        const authUser = authState?.user;
-        if (authUser?.id?.startsWith('local_')) {
-          ipc.invoke('settings:get', { key: 'localProfile' }).then((saved: any) => {
-            if (!saved) {
-              ipc.invoke('settings:set', { key: 'localProfile', value: {
-                id: authUser.id,
-                username: authUser.username,
-                displayName: authUser.displayName,
-                avatarColor: authUser.avatar,
-              }});
-            }
-          }).catch(() => {});
-        }
-      }
+    if (isAuthenticated && stage === 'auth') {
       checkOnboardingDoneAsync().then(done => {
         setStage(done ? 'app' : 'onboarding');
       });
@@ -581,9 +566,12 @@ const AppInner: React.FC = () => {
             style={{ flex: 1, height: '100vh' }}
           >
             <AuthPage onOffline={async () => {
-              dispatch({ type: 'auth/setLocalMode' });
+              // 先 dispatch setLocalMode，让用户有本地身份
+              dispatch(setLocalMode(undefined));
+              // 检查是否做过引导
               const done = await checkOnboardingDoneAsync();
-              setStage(done ? 'app' : 'onboarding');
+              // 用 setTimeout 确保 Redux 状态更新后再切换 stage，避免竞态
+              setTimeout(() => setStage(done ? 'app' : 'onboarding'), 0);
             }} />
           </motion.div>
         )}
