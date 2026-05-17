@@ -26,6 +26,7 @@ import { SearchModal } from './components/modals/SearchModal';
 
 import './styles/globals.css';
 import { SettingsView } from './components/settings/SettingsView';
+import { PluginsView } from './plugins/PluginsView';
 
 type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
 
@@ -285,15 +286,12 @@ const MainContent: React.FC = () => {
   if (activeView === 'library') return <LibraryView />;
   if (activeView === 'references') return <ReferencesView />;
   if (activeView === 'workbench') return <EditorArea />;
-
-  // 编辑器始终在后台保持，只是根据视图显示/隐藏
   if (activeView === 'settings') return <SettingsView />;
+  if (activeView === 'plugins') return <PluginsView />;
 
   const labels: Record<string, {title: string; icon: string; desc: string}> = {
     ai:        { title: 'AI 助手',  icon: '✨', desc: 'AI 写作助手功能即将上线' },
     templates: { title: '模板库',   icon: '📋', desc: '文档模板功能即将上线' },
-    plugins:   { title: '插件市场', icon: '🔌', desc: '插件系统即将上线' },
-    settings:  { title: '设置',     icon: '⚙️', desc: '应用设置功能即将上线' },
   };
   const v = labels[activeView] || { title: activeView, icon: '🚧', desc: '该功能即将上线' };
 
