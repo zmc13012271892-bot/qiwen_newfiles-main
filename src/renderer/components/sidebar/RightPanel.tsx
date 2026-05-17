@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
-import { setRightPanelTab } from '../../store/slices/appSlice';
+import { setRightPanelTab, toggleRightPanel } from '../../store/slices/appSlice';
 import { PluginSidebarPanel } from '../../plugins/PluginSidebarPanel';
 
 interface RightPanelProps {
@@ -39,14 +39,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
       background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column',
       overflow: 'hidden', flexShrink: 0, height: '100%',
     }}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
+      {/* Tabs + 关闭按钮 */}
+      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', flexShrink: 0, alignItems: 'center' }}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => dispatch(setRightPanelTab(tab.id as any))}
             style={{
-              flex: 1, padding: '11px 0', fontSize: 11.5,
+              flex: 1, padding: '10px 0', fontSize: 11.5,
               background: 'transparent', border: 'none', cursor: 'pointer',
               color: rightPanelTab === tab.id ? 'var(--accent)' : 'var(--text-tertiary)',
               borderBottom: `2px solid ${rightPanelTab === tab.id ? 'var(--accent)' : 'transparent'}`,
@@ -57,6 +57,24 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
             {tab.label}
           </button>
         ))}
+        {/* 关闭按钮 */}
+        <button
+          onClick={() => dispatch(toggleRightPanel())}
+          title="关闭面板"
+          style={{
+            width: 28, height: 28, flexShrink: 0, marginRight: 4,
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            color: 'var(--text-tertiary)', borderRadius: 6,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, transition: 'background 0.1s, color 0.1s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface3)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)'; }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
