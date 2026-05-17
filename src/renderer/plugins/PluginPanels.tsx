@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // ── 共享样式工具 ──────────────────────────────────────────
 const card = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -14,7 +14,7 @@ const label: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: '0.8px',
   color: 'var(--text-tertiary)',
-  textTransform: 'uppercase',
+  textTransform: 'uppercase' as const,
   marginBottom: 10,
 };
 
@@ -32,6 +32,19 @@ const btn = (accent?: boolean, extra?: React.CSSProperties): React.CSSProperties
   ...extra,
 });
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '6px 8px',
+  background: 'var(--bg-surface3)',
+  border: '0.5px solid var(--border)',
+  borderRadius: 7,
+  fontSize: 12,
+  color: 'var(--text-primary)',
+  outline: 'none',
+  fontFamily: 'inherit',
+  boxSizing: 'border-box' as const,
+};
+
 // ── 番茄专注计时器 ────────────────────────────────────────
 export const FocusTimerPlugin: React.FC = () => {
   const WORK = 25 * 60;
@@ -40,22 +53,30 @@ export const FocusTimerPlugin: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
   const [rounds, setRounds] = useState(0);
-  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (running) {
-      ref.current = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         setSeconds(s => {
           if (s <= 1) {
             setRunning(false);
-            if (!isBreak) { setRounds(r => r + 1); setIsBreak(true); return BREAK; }
-            else { setIsBreak(false); return WORK; }
+            setIsBreak(prev => {
+              if (!prev) setRounds(r => r + 1);
+              return !prev;
+            });
+            return isBreak ? WORK : BREAK;
           }
           return s - 1;
         });
       }, 1000);
-    } else if (ref.current) clearInterval(ref.current);
-    return () => { if (ref.current) clearInterval(ref.current); };
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [running, isBreak]);
 
   const total = isBreak ? BREAK : WORK;
@@ -65,13 +86,15 @@ export const FocusTimerPlugin: React.FC = () => {
   const r = 34;
   const circ = 2 * Math.PI * r;
 
-  const reset = () => { setRunning(false); setSeconds(isBreak ? BREAK : WORK); };
+  const reset = () => {
+    setRunning(false);
+    setSeconds(isBreak ? BREAK : WORK);
+  };
 
   return (
     <div>
       <div style={label}>番茄专注</div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        {/* Ring */}
         <div style={{ position: 'relative', width: 90, height: 90 }}>
           <svg width="90" height="90" viewBox="0 0 90 90">
             <circle cx="45" cy="45" r={r} fill="none" stroke="var(--bg-surface3)" strokeWidth="6" />
@@ -85,26 +108,15 @@ export const FocusTimerPlugin: React.FC = () => {
               style={{ transition: 'stroke-dashoffset 0.8s ease' }}
             />
           </svg>
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{ fontSize: 20, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: 1 }}>
-              {mm}:{ss}
-            </div>
-            <div style={{ fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {isBreak ? '休息' : '专注'}
-            </div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: 1 }}>{mm}:{ss}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isBreak ? '休息' : '专注'}</div>
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={btn(!running)} onClick={() => setRunning(r => !r)}>
-            {running ? '暂停' : '开始'}
-          </button>
+          <button style={btn(!running)} onClick={() => setRunning(r => !r)}>{running ? '暂停' : '开始'}</button>
           <button style={btn(false)} onClick={reset}>重置</button>
         </div>
-
         <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
           今日已完成 <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{rounds}</span> 轮
         </div>
@@ -129,28 +141,18 @@ export const QuickNotePlugin: React.FC = () => {
       <div style={label}>快速便签</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
+          value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && add()}
           placeholder="记录灵感、待办..."
-          style={{
-            flex: 1, padding: '7px 10px', background: 'var(--bg-surface3)',
-            border: '0.5px solid var(--border)', borderRadius: 8,
-            fontSize: 12.5, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-          }}
+          style={{ ...inputStyle, flex: 1 }}
         />
-        <button style={btn(true, { padding: '7px 10px' })} onClick={add}>+</button>
+        <button style={btn(true, { padding: '6px 10px' })} onClick={add}>+</button>
       </div>
       <div style={{ maxHeight: 160, overflowY: 'auto' }}>
         {notes.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '16px 0', opacity: 0.6 }}>
-            暂无便签
-          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '16px 0', opacity: 0.6 }}>暂无便签</div>
         ) : notes.map(n => (
-          <div key={n.id} style={{
-            display: 'flex', alignItems: 'flex-start', gap: 8,
-            padding: '6px 0', borderBottom: '0.5px solid var(--border)',
-          }}>
+          <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
             <div
               onClick={() => setNotes(ns => ns.map(x => x.id === n.id ? { ...x, done: !x.done } : x))}
               style={{
@@ -162,14 +164,8 @@ export const QuickNotePlugin: React.FC = () => {
             >
               {n.done && <span style={{ fontSize: 9, color: '#fff' }}>✓</span>}
             </div>
-            <span style={{
-              fontSize: 12.5, color: n.done ? 'var(--text-tertiary)' : 'var(--text-secondary)',
-              textDecoration: n.done ? 'line-through' : 'none', flex: 1, lineHeight: 1.5,
-            }}>{n.text}</span>
-            <button
-              onClick={() => setNotes(ns => ns.filter(x => x.id !== n.id))}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 11, padding: 0 }}
-            >✕</button>
+            <span style={{ fontSize: 12.5, color: n.done ? 'var(--text-tertiary)' : 'var(--text-secondary)', textDecoration: n.done ? 'line-through' : 'none', flex: 1, lineHeight: 1.5 }}>{n.text}</span>
+            <button onClick={() => setNotes(ns => ns.filter(x => x.id !== n.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 11, padding: 0 }}>✕</button>
           </div>
         ))}
       </div>
@@ -180,40 +176,35 @@ export const QuickNotePlugin: React.FC = () => {
 // ── 引用格式生成 ──────────────────────────────────────────
 export const CitationManagerPlugin: React.FC = () => {
   const [format, setFormat] = useState<'APA' | 'MLA' | 'GB'>('APA');
-  const [author, setAuthor] = useState('张三');
+  const [author, setAuthor] = useState('');
   const [title, setTitle] = useState('');
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [journal, setJournal] = useState('');
   const [result, setResult] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const generate = () => {
-    if (!title) return;
-    let cit = '';
-    if (format === 'APA') cit = `${author} (${year}). ${title}. ${journal ? `*${journal}*.` : ''}`;
-    else if (format === 'MLA') cit = `${author}. "${title}." ${journal ? `*${journal}*, ` : ''}${year}.`;
-    else cit = `${author}. ${title}[J]. ${journal ? `${journal}, ` : ''}${year}.`;
-    setResult(cit);
+    if (!title.trim()) return;
+    const a = author || '作者';
+    if (format === 'APA') setResult(`${a} (${year}). ${title}.${journal ? ` *${journal}*.` : ''}`);
+    else if (format === 'MLA') setResult(`${a}. "${title}." ${journal ? `*${journal}*, ` : ''}${year}.`);
+    else setResult(`${a}. ${title}[J].${journal ? ` ${journal},` : ''} ${year}.`);
   };
 
-  const copy = () => { if (result) navigator.clipboard.writeText(result); };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '6px 8px', background: 'var(--bg-surface3)',
-    border: '0.5px solid var(--border)', borderRadius: 7,
-    fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-    boxSizing: 'border-box',
+  const copy = () => {
+    if (!result) return;
+    navigator.clipboard.writeText(result).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
   };
 
   return (
     <div>
       <div style={label}>引用生成</div>
-      {/* Format selector */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
         {(['APA', 'MLA', 'GB'] as const).map(f => (
-          <button key={f} onClick={() => setFormat(f)} style={{
-            ...btn(format === f),
-            padding: '4px 10px', fontSize: 11, flex: 1,
-          }}>{f}</button>
+          <button key={f} onClick={() => setFormat(f)} style={{ ...btn(format === f), padding: '4px 10px', fontSize: 11, flex: 1 }}>{f}</button>
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
@@ -228,10 +219,9 @@ export const CitationManagerPlugin: React.FC = () => {
       {result && (
         <div style={{ ...card(), position: 'relative' }}>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, paddingRight: 24 }}>{result}</div>
-          <button onClick={copy} style={{
-            position: 'absolute', top: 8, right: 8, background: 'none', border: 'none',
-            cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 13,
-          }}>⎘</button>
+          <button onClick={copy} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--accent)' : 'var(--text-tertiary)', fontSize: 13 }}>
+            {copied ? '✓' : '⎘'}
+          </button>
         </div>
       )}
     </div>
@@ -255,36 +245,29 @@ export const ClauseLibraryPlugin: React.FC = () => {
   const cats = ['全部', ...Array.from(new Set(CLAUSES.map(c => c.cat)))];
   const filtered = CLAUSES.filter(c =>
     (cat === '全部' || c.cat === cat) &&
-    (c.name.includes(search) || c.text.includes(search))
+    (!search || c.name.includes(search) || c.text.includes(search))
   );
 
   const copy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    });
   };
 
   return (
     <div>
       <div style={label}>条款模板库</div>
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="搜索条款..."
-        style={{
-          width: '100%', padding: '6px 10px', marginBottom: 8, boxSizing: 'border-box',
-          background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 8,
-          fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-        }}
-      />
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索条款..."
+        style={{ ...inputStyle, marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 10 }}>
         {cats.map(c => (
           <button key={c} onClick={() => setCat(c)} style={{ ...btn(cat === c), padding: '3px 8px', fontSize: 10 }}>{c}</button>
         ))}
       </div>
       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
         {filtered.map((c, i) => (
-          <div key={i} style={card({ cursor: 'pointer', position: 'relative' })}>
+          <div key={i} style={card({ position: 'relative' })}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)' }}>{c.name}</div>
               <button onClick={() => copy(c.text, c.name)} style={{
@@ -292,13 +275,9 @@ export const ClauseLibraryPlugin: React.FC = () => {
                 border: 'none', cursor: 'pointer', fontSize: 10,
                 color: copied === c.name ? 'var(--accent)' : 'var(--text-tertiary)',
                 padding: '2px 6px', borderRadius: 4,
-              }}>
-                {copied === c.name ? '已复制' : '复制'}
-              </button>
+              }}>{copied === c.name ? '已复制' : '复制'}</button>
             </div>
-            <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.55 }}>
-              {c.text.slice(0, 60)}...
-            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.55 }}>{c.text.slice(0, 60)}...</div>
           </div>
         ))}
       </div>
@@ -325,27 +304,21 @@ export const LegalCheckerPlugin: React.FC<{ content?: string }> = ({ content = '
       {risks.length > 0 && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: '#e8824a', marginBottom: 6 }}>⚠ 模糊承诺表达</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {risks.map(t => (
-              <span key={t} style={{ background: 'rgba(232,130,74,0.1)', color: '#e8824a', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>{t}</span>
-            ))}
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+            {risks.map(t => <span key={t} style={{ background: 'rgba(232,130,74,0.1)', color: '#e8824a', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>{t}</span>)}
           </div>
         </div>
       )}
       {vagueWords.length > 0 && (
         <div>
           <div style={{ fontSize: 11, color: '#c8a96e', marginBottom: 6 }}>○ 模糊限定词</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {vagueWords.map(t => (
-              <span key={t} style={{ background: 'rgba(200,169,110,0.1)', color: '#c8a96e', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>{t}</span>
-            ))}
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+            {vagueWords.map(t => <span key={t} style={{ background: 'rgba(200,169,110,0.1)', color: '#c8a96e', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}>{t}</span>)}
           </div>
         </div>
       )}
       {content.length < 10 && (
-        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '16px 0', opacity: 0.6 }}>
-          打开文档后自动分析
-        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '16px 0', opacity: 0.6 }}>打开文档后自动分析</div>
       )}
     </div>
   );
@@ -353,7 +326,7 @@ export const LegalCheckerPlugin: React.FC<{ content?: string }> = ({ content = '
 
 // ── 案件时间线 ────────────────────────────────────────────
 export const CaseTimelinePlugin: React.FC = () => {
-  const [events, setEvents] = useState<{ id: string; date: string; event: string; important: boolean }[]>([
+  const [events, setEvents] = useState([
     { id: '1', date: '2024-01-15', event: '合同签订', important: true },
     { id: '2', date: '2024-03-20', event: '争议发生', important: true },
     { id: '3', date: '2024-04-01', event: '律师介入', important: false },
@@ -363,8 +336,9 @@ export const CaseTimelinePlugin: React.FC = () => {
   const [newEvent, setNewEvent] = useState('');
 
   const addEvent = () => {
-    if (!newDate || !newEvent) return;
-    setEvents(e => [...e, { id: Date.now().toString(), date: newDate, event: newEvent, important: false }].sort((a, b) => a.date.localeCompare(b.date)));
+    if (!newDate || !newEvent.trim()) return;
+    setEvents(e => [...e, { id: Date.now().toString(), date: newDate, event: newEvent, important: false }]
+      .sort((a, b) => a.date.localeCompare(b.date)));
     setAdding(false); setNewDate(''); setNewEvent('');
   };
 
@@ -377,15 +351,15 @@ export const CaseTimelinePlugin: React.FC = () => {
       {adding && (
         <div style={{ ...card(), marginBottom: 10 }}>
           <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
-            style={{ width: '100%', padding: '5px 8px', marginBottom: 6, background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ ...inputStyle, marginBottom: 6 }} />
           <input value={newEvent} onChange={e => setNewEvent(e.target.value)} placeholder="事件描述"
-            style={{ width: '100%', padding: '5px 8px', marginBottom: 8, background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ ...inputStyle, marginBottom: 8 }} />
           <button style={btn(true, { width: '100%' })} onClick={addEvent}>添加</button>
         </div>
       )}
       <div style={{ position: 'relative', paddingLeft: 16 }}>
         <div style={{ position: 'absolute', left: 5, top: 8, bottom: 8, width: 1, background: 'var(--border)' }} />
-        {events.map((e, i) => (
+        {events.map(e => (
           <div key={e.id} style={{ position: 'relative', paddingBottom: 12 }}>
             <div style={{
               position: 'absolute', left: -12, top: 4, width: 8, height: 8, borderRadius: '50%',
@@ -403,36 +377,18 @@ export const CaseTimelinePlugin: React.FC = () => {
 
 // ── 教案规划器 ────────────────────────────────────────────
 export const LessonPlannerPlugin: React.FC = () => {
-  const [plan, setPlan] = useState({
-    subject: '', grade: '', duration: '45',
-    objectives: '', keyPoints: '', activities: '',
-  });
+  const [plan, setPlan] = useState({ subject: '', grade: '', duration: '45', objectives: '', keyPoints: '', activities: '' });
 
   const field = (key: keyof typeof plan, placeholder: string, rows = 1) => (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 3 }}>{placeholder}</div>
       {rows === 1 ? (
-        <input
-          value={plan[key]}
-          onChange={e => setPlan(p => ({ ...p, [key]: e.target.value }))}
-          placeholder={placeholder}
-          style={{
-            width: '100%', padding: '6px 8px', background: 'var(--bg-surface3)',
-            border: '0.5px solid var(--border)', borderRadius: 7,
-            fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-          }}
-        />
+        <input value={plan[key]} onChange={e => setPlan(p => ({ ...p, [key]: e.target.value }))}
+          placeholder={placeholder} style={inputStyle} />
       ) : (
-        <textarea
-          value={plan[key]}
-          onChange={e => setPlan(p => ({ ...p, [key]: e.target.value }))}
+        <textarea value={plan[key]} onChange={e => setPlan(p => ({ ...p, [key]: e.target.value }))}
           placeholder={placeholder} rows={rows}
-          style={{
-            width: '100%', padding: '6px 8px', background: 'var(--bg-surface3)',
-            border: '0.5px solid var(--border)', borderRadius: 7, resize: 'none',
-            fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-          }}
-        />
+          style={{ ...inputStyle, resize: 'none' as const }} />
       )}
     </div>
   );
@@ -463,8 +419,8 @@ export const QuizGeneratorPlugin: React.FC<{ content?: string }> = ({ content = 
   const [loading, setLoading] = useState(false);
 
   const generate = () => {
+    if (loading) return;
     setLoading(true);
-    // 本地模拟生成（无需网络）
     setTimeout(() => {
       const sentences = content.split(/[。！？.!?]/).filter(s => s.trim().length > 8).slice(0, 5);
       const generated = sentences.map((s, i) => ({
@@ -473,9 +429,7 @@ export const QuizGeneratorPlugin: React.FC<{ content?: string }> = ({ content = 
           ? s.trim().replace(/[\u4e00-\u9fa5]{2,4}/, '____') + '。'
           : s.trim() + '。（对/错）',
       }));
-      setQuiz(generated.length ? generated : [
-        { type: '提示', q: '请先在文档中写入内容，再生成题目' },
-      ]);
+      setQuiz(generated.length ? generated : [{ type: '提示', q: '请先在文档中写入内容，再生成题目' }]);
       setLoading(false);
     }, 800);
   };
@@ -502,44 +456,34 @@ export const MindmapPlugin: React.FC<{ content?: string }> = ({ content = '' }) 
     if (!content) return [];
     return content.split('\n')
       .filter(l => l.startsWith('#'))
-      .map(l => ({
-        level: l.match(/^#+/)?.[0].length || 1,
-        text: l.replace(/^#+\s*/, '').trim(),
-      })).slice(0, 12);
+      .map(l => ({ level: l.match(/^#+/)?.[0].length || 1, text: l.replace(/^#+\s*/, '').trim() }))
+      .slice(0, 12);
   }, [content]);
 
   if (outline.length === 0) return (
     <div>
       <div style={label}>思维导图</div>
-      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px 0', opacity: 0.6 }}>
-        使用 # 标题构建思维导图
-      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px 0', opacity: 0.6 }}>使用 # 标题构建思维导图</div>
     </div>
   );
+
+  const colors = ['#c8a96e', '#7eb8e8', '#82c97a', '#e8824a', '#a87ed4'];
 
   return (
     <div>
       <div style={label}>思维导图</div>
-      <div style={{ position: 'relative' }}>
-        {outline.map((node, i) => {
-          const indent = (node.level - 1) * 14;
-          const colors = ['#c8a96e', '#7eb8e8', '#82c97a', '#e8824a', '#a87ed4'];
-          const color = colors[(node.level - 1) % colors.length];
-          return (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: `4px 0 4px ${indent}px`,
-              borderLeft: node.level > 1 ? `1px dashed var(--border)` : 'none',
-              marginLeft: node.level > 1 ? indent - 8 : 0,
-            }}>
-              <div style={{ width: node.level === 1 ? 8 : 5, height: node.level === 1 ? 8 : 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <span style={{ fontSize: node.level === 1 ? 13 : 11.5, color: node.level === 1 ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: node.level === 1 ? 500 : 400 }}>
-                {node.text}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {outline.map((node, i) => {
+        const indent = (node.level - 1) * 14;
+        const color = colors[(node.level - 1) % colors.length];
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: `4px 0 4px ${indent}px` }}>
+            <div style={{ width: node.level === 1 ? 8 : 5, height: node.level === 1 ? 8 : 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
+            <span style={{ fontSize: node.level === 1 ? 13 : 11.5, color: node.level === 1 ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: node.level === 1 ? 500 : 400 }}>
+              {node.text}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -554,20 +498,21 @@ const MEDICAL_TEMPLATES = [
 export const MedicalTemplatePlugin: React.FC = () => {
   const [copied, setCopied] = useState<string | null>(null);
   const copy = (template: string, name: string) => {
-    navigator.clipboard.writeText(template);
-    setCopied(name);
-    setTimeout(() => setCopied(null), 1500);
+    navigator.clipboard.writeText(template).then(() => {
+      setCopied(name);
+      setTimeout(() => setCopied(null), 1500);
+    });
   };
   return (
     <div>
       <div style={label}>病历模板</div>
       {MEDICAL_TEMPLATES.map(t => (
-        <div key={t.name} style={card({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' })}>
+        <div key={t.name} style={card({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>{t.icon}</span>
             <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{t.name}</span>
           </div>
-          <button onClick={() => copy(t.template, t.name)} style={{ ...btn(false, { padding: '3px 10px', fontSize: 11 }) }}>
+          <button onClick={() => copy(t.template, t.name)} style={btn(false, { padding: '3px 10px', fontSize: 11 })}>
             {copied === t.name ? '✓ 已复制' : '插入'}
           </button>
         </div>
@@ -589,21 +534,13 @@ const DRUGS = [
 export const DrugReferencePlugin: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<typeof DRUGS[0] | null>(null);
-
   const filtered = DRUGS.filter(d => d.name.includes(search) || d.category.includes(search));
 
   return (
     <div>
       <div style={label}>药品速查</div>
-      <input
-        value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="搜索药品名称或分类..."
-        style={{
-          width: '100%', padding: '6px 10px', marginBottom: 8, boxSizing: 'border-box',
-          background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 8,
-          fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-        }}
-      />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索药品名称或分类..."
+        style={{ ...inputStyle, marginBottom: 8 }} />
       {selected ? (
         <div style={card()}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -648,34 +585,25 @@ export const ICDLookupPlugin: React.FC = () => {
   const filtered = ICD_DATA.filter(d => d.code.includes(search) || d.name.includes(search));
 
   const copy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopied(code);
-    setTimeout(() => setCopied(null), 1500);
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(code);
+      setTimeout(() => setCopied(null), 1500);
+    });
   };
 
   return (
     <div>
       <div style={label}>ICD 编码查询</div>
-      <input
-        value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="搜索疾病名称或编码..."
-        style={{
-          width: '100%', padding: '6px 10px', marginBottom: 8, boxSizing: 'border-box',
-          background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 8,
-          fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-        }}
-      />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索疾病名称或编码..."
+        style={{ ...inputStyle, marginBottom: 8 }} />
       {filtered.map(d => (
         <div key={d.code} style={card({ display: 'flex', alignItems: 'center', gap: 10 })}>
-          <div style={{
-            background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: 11.5,
-            fontFamily: 'monospace', padding: '3px 8px', borderRadius: 6, flexShrink: 0,
-          }}>{d.code}</div>
+          <div style={{ background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: 11.5, fontFamily: 'monospace', padding: '3px 8px', borderRadius: 6, flexShrink: 0 }}>{d.code}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{d.name}</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>{d.category}</div>
           </div>
-          <button onClick={() => copy(d.code)} style={{ ...btn(false, { padding: '2px 8px', fontSize: 10 }) }}>
+          <button onClick={() => copy(d.code)} style={btn(false, { padding: '2px 8px', fontSize: 10 })}>
             {copied === d.code ? '✓' : '复制'}
           </button>
         </div>
@@ -690,7 +618,6 @@ export const ReadabilityPlugin: React.FC<{ content?: string }> = ({ content = ''
   const avgLen = sentences.length ? Math.round(sentences.reduce((a, s) => a + s.length, 0) / sentences.length) : 0;
   const longSentences = sentences.filter(s => s.length > 50).length;
   const score = Math.max(0, Math.min(100, 100 - longSentences * 5 - Math.max(0, avgLen - 20)));
-
   const scoreColor = score > 70 ? '#52c97a' : score > 40 ? '#c8a96e' : '#e8824a';
   const scoreLabel = score > 70 ? '易读' : score > 40 ? '中等' : '偏难';
 
@@ -702,12 +629,7 @@ export const ReadabilityPlugin: React.FC<{ content?: string }> = ({ content = ''
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: '50%',
-              border: `3px solid ${scoreColor}`,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', border: `3px solid ${scoreColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 300, color: scoreColor }}>{score}</div>
             </div>
             <div>
@@ -722,7 +644,7 @@ export const ReadabilityPlugin: React.FC<{ content?: string }> = ({ content = ''
               { label: '长句占比', value: `${sentences.length ? Math.round(longSentences / sentences.length * 100) : 0}%` },
               { label: '总字数', value: content.replace(/\s/g, '').length },
             ].map(s => (
-              <div key={s.label} style={card({ padding: '10px 12px', marginBottom: 0 })}>
+              <div key={s.label} style={{ ...card({ padding: '10px 12px', marginBottom: 0 }) }}>
                 <div style={{ fontSize: 16, fontWeight: 300, color: 'var(--text-primary)' }}>{s.value}</div>
                 <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{s.label}</div>
               </div>
@@ -736,19 +658,18 @@ export const ReadabilityPlugin: React.FC<{ content?: string }> = ({ content = ''
 
 // ── 人物关系追踪 ──────────────────────────────────────────
 export const CharacterTrackerPlugin: React.FC = () => {
-  const [chars, setChars] = useState<{ id: string; name: string; role: string; color: string }[]>([
+  const [chars, setChars] = useState([
     { id: '1', name: '主角', role: '主人公', color: '#c8a96e' },
     { id: '2', name: '配角', role: '助手', color: '#7eb8e8' },
   ]);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
-
   const colors = ['#c8a96e', '#7eb8e8', '#82c97a', '#e8824a', '#a87ed4', '#e87a7a'];
 
   const add = () => {
-    if (!name) return;
+    if (!name.trim()) return;
     const color = colors[chars.length % colors.length];
-    setChars(c => [...c, { id: Date.now().toString(), name, role, color }]);
+    setChars(c => [...c, { id: Date.now().toString(), name: name.trim(), role: role.trim(), color }]);
     setName(''); setRole('');
   };
 
@@ -756,10 +677,8 @@ export const CharacterTrackerPlugin: React.FC = () => {
     <div>
       <div style={label}>人物追踪</div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="姓名"
-          style={{ flex: 1, padding: '6px 8px', background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 7, fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }} />
-        <input value={role} onChange={e => setRole(e.target.value)} placeholder="角色"
-          style={{ flex: 1, padding: '6px 8px', background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 7, fontSize: 12, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }} />
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="姓名" style={{ ...inputStyle, flex: 1 }} />
+        <input value={role} onChange={e => setRole(e.target.value)} placeholder="角色" style={{ ...inputStyle, flex: 1 }} />
         <button style={btn(true, { padding: '6px 10px' })} onClick={add}>+</button>
       </div>
       {chars.map(c => (
@@ -767,11 +686,11 @@ export const CharacterTrackerPlugin: React.FC = () => {
           <div style={{ width: 26, height: 26, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 500, flexShrink: 0 }}>
             {c.name.slice(0, 1)}
           </div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, color: 'var(--text-primary)', fontWeight: 500 }}>{c.name}</div>
             {c.role && <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>{c.role}</div>}
           </div>
-          <button onClick={() => setChars(cs => cs.filter(x => x.id !== c.id))} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 11 }}>✕</button>
+          <button onClick={() => setChars(cs => cs.filter(x => x.id !== c.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 11 }}>✕</button>
         </div>
       ))}
     </div>
@@ -783,8 +702,9 @@ export const StyleCheckerPlugin: React.FC<{ content?: string }> = ({ content = '
   const repeated = React.useMemo(() => {
     if (!content) return [];
     const words = content.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
+    const stopWords = new Set(['这个', '那个', '是的', '可以', '我们', '他们', '一个', '没有', '进行', '通过', '相关', '以及', '但是', '因为', '所以']);
     const freq: Record<string, number> = {};
-    words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    words.filter(w => !stopWords.has(w)).forEach(w => { freq[w] = (freq[w] || 0) + 1; });
     return Object.entries(freq).filter(([, c]) => c >= 3).sort(([, a], [, b]) => b - a).slice(0, 5);
   }, [content]);
 
@@ -800,9 +720,7 @@ export const StyleCheckerPlugin: React.FC<{ content?: string }> = ({ content = '
           <div style={card()}>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 6 }}>被动语态频率</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                height: 6, flex: 1, background: 'var(--bg-surface3)', borderRadius: 3, overflow: 'hidden',
-              }}>
+              <div style={{ height: 6, flex: 1, background: 'var(--bg-surface3)', borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.min(100, passive * 5)}%`, background: passive > 10 ? '#e8824a' : '#c8a96e', borderRadius: 3, transition: 'width 0.5s' }} />
               </div>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 20 }}>{passive}</span>
@@ -844,13 +762,9 @@ export const KeywordExtractorPlugin: React.FC<{ content?: string }> = ({ content
           {content.length < 30 ? '文档内容不足，请继续写作' : '未找到高频关键词'}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
           {keywords.map(([w, c]) => (
-            <div key={w} style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: 'var(--bg-surface2)', border: '0.5px solid var(--border)',
-              borderRadius: 20, padding: '4px 10px',
-            }}>
+            <div key={w} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-surface2)', border: '0.5px solid var(--border)', borderRadius: 20, padding: '4px 10px' }}>
               <span style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{w}</span>
               <span style={{ fontSize: 10, color: 'var(--accent)', background: 'var(--accent-bg)', padding: '1px 5px', borderRadius: 10 }}>{c}</span>
             </div>
@@ -870,27 +784,24 @@ export const OutlineBuilderPlugin: React.FC = () => {
     { id: '4', title: '结果与讨论', target: 2500 },
     { id: '5', title: '结论', target: 800 },
   ]);
-
   const total = sections.reduce((a, s) => a + s.target, 0);
 
   return (
     <div>
       <div style={label}>论文大纲</div>
-      <div style={{ marginBottom: 8 }}>
-        {sections.map((s, i) => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
-            <div style={{ width: 18, height: 18, borderRadius: 5, background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>{i + 1}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{s.title}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>目标 {s.target} 字</div>
-            </div>
-            <input type="number" value={s.target}
-              onChange={e => setSections(ss => ss.map(x => x.id === s.id ? { ...x, target: Number(e.target.value) } : x))}
-              style={{ width: 56, padding: '3px 6px', background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 6, fontSize: 11, color: 'var(--text-secondary)', outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
+      {sections.map((s, i) => (
+        <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
+          <div style={{ width: 18, height: 18, borderRadius: 5, background: 'var(--accent-bg)', color: 'var(--accent)', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>{i + 1}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{s.title}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>目标 {s.target} 字</div>
           </div>
-        ))}
-      </div>
-      <div style={card({ display: 'flex', justifyContent: 'space-between', padding: '8px 12px' })}>
+          <input type="number" value={s.target}
+            onChange={e => setSections(ss => ss.map(x => x.id === s.id ? { ...x, target: Math.max(0, Number(e.target.value)) } : x))}
+            style={{ width: 56, padding: '3px 6px', background: 'var(--bg-surface3)', border: '0.5px solid var(--border)', borderRadius: 6, fontSize: 11, color: 'var(--text-secondary)', outline: 'none', fontFamily: 'inherit', textAlign: 'center' as const }} />
+        </div>
+      ))}
+      <div style={{ ...card({ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', marginTop: 8 }) }}>
         <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>总目标</span>
         <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>{total.toLocaleString()} 字</span>
       </div>

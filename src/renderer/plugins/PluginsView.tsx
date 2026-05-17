@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { setPlugins, togglePlugin } from '../store/slices/pluginsSlice';
+import { setPlugins, togglePlugin, installPlugin } from '../store/slices/pluginsSlice';
 import { ALL_PLUGINS, getAvailablePlugins, PROFESSION_PLUGIN_MAP } from './pluginRegistry';
 import { Plugin, PluginCategory } from '../../shared/types';
 
@@ -53,8 +53,10 @@ export const PluginsView: React.FC = () => {
   };
 
   const handleInstall = (plugin: Plugin) => {
-    const updated = [...installedPlugins, { ...plugin, isInstalled: true, isEnabled: true, installedAt: Date.now() }];
-    dispatch(setPlugins(updated));
+    // 使用 installPlugin action，插件状态持久化保存
+    dispatch(installPlugin(plugin));
+    // 切换到"已安装"tab让用户看到效果
+    setTab('installed');
   };
 
   const allCategories = Array.from(new Set(ALL_PLUGINS.map(p => p.category)));
