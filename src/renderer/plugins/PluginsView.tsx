@@ -3,27 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { setPlugins, togglePlugin, installPlugin } from '../store/slices/pluginsSlice';
-import { ALL_PLUGINS, getAvailablePlugins, PROFESSION_PLUGIN_MAP } from './pluginRegistry';
+import { ALL_PLUGINS, getAvailablePlugins } from './pluginRegistry';
 import { Plugin, PluginCategory } from '../../shared/types';
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   research: '学术研究',
-  writing: '写作工具',
-  reference: '参考资料',
-  export: '导出格式',
-  ai: '人工智能',
-  theme: '外观主题',
-  utility: '效率工具',
+  writing:  '写作工具',
+  reference:'参考资料',
+  export:   '导出格式',
+  ai:       '人工智能',
+  theme:    '外观主题',
+  utility:  '效率工具',
 };
 
 const CATEGORY_ICONS: Record<PluginCategory, string> = {
-  research: '🔬',
-  writing: '✍️',
-  reference: '📚',
-  export: '📤',
-  ai: '🤖',
-  theme: '🎨',
-  utility: '⚙️',
+  research: '🔬', writing: '✍️', reference: '📚',
+  export: '📤', ai: '🤖', theme: '🎨', utility: '⚙️',
 };
 
 export const PluginsView: React.FC = () => {
@@ -34,12 +29,17 @@ export const PluginsView: React.FC = () => {
 
   const workspace = workspaces.find(w => w.id === activeWorkspaceId);
   const profession = workspace?.profession ?? 'general';
-  const available = getAvailablePlugins(profession);
+
+  // ── 可用插件：排除掉已安装的 ──────────────────────────
+  const installedIds = new Set(installedPlugins.map(p => p.id));
+  const available = getAvailablePlugins(profession).filter(p => !installedIds.has(p.id));
 
   const [tab, setTab] = useState<'installed' | 'available'>('installed');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<PluginCategory | 'all'>('all');
   const [detail, setDetail] = useState<Plugin | null>(null);
+  // 记录正在安装中的插件 id，用于显示动画
+  const [installing, setInstalling] = useState<string | null>(null);
 
   const filterPlugins = (list: Plugin[]) => list.filter(p => {
     const q = search.toLowerCase();
@@ -52,10 +52,13 @@ export const PluginsView: React.FC = () => {
     dispatch(togglePlugin(plugin.id));
   };
 
-  const handleInstall = (plugin: Plugin) => {
-    // 使用 installPlugin action，插件状态持久化保存
+  const handleInstall = async (plugin: Plugin) => {
+    setInstalling(plugin.id);
+    // 短暂动画延迟，让用户感知安装过程
+    await new Promise(r => setTimeout(r, 600));
     dispatch(installPlugin(plugin));
-    // 切换到"已安装"tab让用户看到效果
+    setInstalling(null);
+    // 安装后切换到「已安装」tab
     setTab('installed');
   };
 
@@ -65,18 +68,16 @@ export const PluginsView: React.FC = () => {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ padding: '24px 32px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>插件</div>
-            <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-              {installedPlugins.filter(p => p.isEnabled).length} 个已启用 · 根据您的职业自动推荐
-            </div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>插件</div>
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+            {installedPlugins.filter(p => p.isEnabled).length} 个已启用 · 根据职业自动推荐
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 0, borderBottom: '0.5px solid var(--border)', marginBottom: 0 }}>
-          {([['installed', '已安装'], ['available', '可用插件']] as const).map(([key, lbl]) => (
+        <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)' }}>
+          {([['installed', `已安装 ${installedPlugins.length}`], ['available', `可用插件 ${available.length}`]] as const).map(([key, lbl]) => (
             <button key={key} onClick={() => setTab(key)} style={{
               padding: '10px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
               fontSize: 13.5, fontFamily: 'inherit',
@@ -89,7 +90,7 @@ export const PluginsView: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left filter bar */}
+        {/* Left category bar */}
         <div style={{ width: 180, borderRight: '0.5px solid var(--border)', padding: '20px 16px', overflowY: 'auto', flexShrink: 0 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.8px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>分类</div>
           {(['all', ...allCategories] as const).map(cat => (
@@ -100,15 +101,14 @@ export const PluginsView: React.FC = () => {
               color: selectedCategory === cat ? 'var(--text-primary)' : 'var(--text-tertiary)',
               fontSize: 13, textAlign: 'left', transition: 'all 0.15s',
             }}>
-              <span style={{ fontSize: 13 }}>{cat === 'all' ? '📦' : CATEGORY_ICONS[cat]}</span>
-              {cat === 'all' ? '全部' : CATEGORY_LABELS[cat]}
+              <span>{cat === 'all' ? '📦' : CATEGORY_ICONS[cat as PluginCategory]}</span>
+              {cat === 'all' ? '全部' : CATEGORY_LABELS[cat as PluginCategory]}
             </button>
           ))}
         </div>
 
-        {/* Main list */}
+        {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* Search */}
           <div style={{ padding: '16px 24px', flexShrink: 0 }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
@@ -126,6 +126,7 @@ export const PluginsView: React.FC = () => {
             <PluginGrid
               plugins={filterPlugins(tab === 'installed' ? installedPlugins : available)}
               isInstalled={tab === 'installed'}
+              installing={installing}
               onToggle={handleToggle}
               onInstall={handleInstall}
               onDetail={setDetail}
@@ -134,7 +135,7 @@ export const PluginsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Detail panel */}
+      {/* Detail side panel */}
       <AnimatePresence>
         {detail && (
           <motion.div
@@ -148,7 +149,7 @@ export const PluginsView: React.FC = () => {
               display: 'flex', flexDirection: 'column', zIndex: 10,
             }}
           >
-            <PluginDetail plugin={detail} onClose={() => setDetail(null)} />
+            <PluginDetail plugin={detail} isInstalled={installedIds.has(detail.id)} installing={installing === detail.id} onClose={() => setDetail(null)} onInstall={handleInstall} onToggle={handleToggle} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -160,23 +161,32 @@ export const PluginsView: React.FC = () => {
 const PluginGrid: React.FC<{
   plugins: Plugin[];
   isInstalled: boolean;
+  installing: string | null;
   onToggle: (p: Plugin) => void;
-  onInstall: (p: Plugin) => void;
+  onInstall: (p: Plugin) => Promise<void>;
   onDetail: (p: Plugin) => void;
-}> = ({ plugins, isInstalled, onToggle, onInstall, onDetail }) => {
+}> = ({ plugins, isInstalled, installing, onToggle, onInstall, onDetail }) => {
   if (plugins.length === 0) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 8 }}>
       <div style={{ fontSize: 28, opacity: 0.3 }}>🔌</div>
-      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>没有找到相关插件</div>
+      <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+        {isInstalled ? '没有已安装的插件' : '没有更多可用插件'}
+      </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-      {plugins.map(p => (
-        <PluginCard key={p.id} plugin={p} isInstalled={isInstalled} onToggle={onToggle} onInstall={onInstall} onDetail={onDetail} />
-      ))}
-    </div>
+    <motion.div layout style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <AnimatePresence>
+        {plugins.map(p => (
+          <PluginCard
+            key={p.id} plugin={p} isInstalled={isInstalled}
+            installing={installing === p.id}
+            onToggle={onToggle} onInstall={onInstall} onDetail={onDetail}
+          />
+        ))}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -184,59 +194,92 @@ const PluginGrid: React.FC<{
 const PluginCard: React.FC<{
   plugin: Plugin;
   isInstalled: boolean;
+  installing: boolean;
   onToggle: (p: Plugin) => void;
-  onInstall: (p: Plugin) => void;
+  onInstall: (p: Plugin) => Promise<void>;
   onDetail: (p: Plugin) => void;
-}> = ({ plugin: p, isInstalled, onToggle, onInstall, onDetail }) => {
-  const [hovered, setHovered] = useState(false);
-
+}> = ({ plugin: p, isInstalled, installing, onToggle, onInstall, onDetail }) => {
   return (
     <motion.div
-      whileHover={{ y: -1 }}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
+      layout
+      initial={{ opacity: 0, scale: 0.94, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.94, y: -8 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -2, transition: { duration: 0.15 } }}
       onClick={() => onDetail(p)}
       style={{
         padding: 16, borderRadius: 12, cursor: 'pointer',
-        background: hovered ? 'var(--bg-surface2)' : 'var(--bg-surface)',
-        border: `0.5px solid ${hovered ? 'rgba(200,169,110,0.2)' : 'var(--border)'}`,
-        transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 10,
+        background: 'var(--bg-surface)',
+        border: '0.5px solid var(--border)',
+        display: 'flex', flexDirection: 'column', gap: 10,
+        position: 'relative', overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-            background: 'var(--bg-surface3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, border: '0.5px solid var(--border)',
-          }}>{p.icon}</div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{p.displayName}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>v{p.version}</div>
-          </div>
+      {/* Installing shimmer overlay */}
+      {installing && (
+        <motion.div
+          initial={{ x: '-100%' }}
+          animate={{ x: '100%' }}
+          transition={{ duration: 0.6, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(200,169,110,0.08), transparent)',
+            pointerEvents: 'none', zIndex: 2,
+          }}
+        />
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+          background: 'var(--bg-surface3)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: 18, border: '0.5px solid var(--border)',
+        }}>{p.icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{p.displayName}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>v{p.version}</div>
         </div>
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.55, flex: 1 }}>
-        {p.description.slice(0, 60)}{p.description.length > 60 ? '...' : ''}
+        {p.description.slice(0, 58)}{p.description.length > 58 ? '...' : ''}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{
-          fontSize: 10, padding: '2px 8px', borderRadius: 4,
-          background: 'var(--bg-surface3)', color: 'var(--text-tertiary)',
-        }}>
+        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'var(--bg-surface3)', color: 'var(--text-tertiary)' }}>
           {CATEGORY_ICONS[p.category]} {CATEGORY_LABELS[p.category]}
         </span>
 
         {isInstalled ? (
           <ToggleSwitch enabled={p.isEnabled} onToggle={e => { e.stopPropagation(); onToggle(p); }} />
         ) : (
-          <button onClick={e => { e.stopPropagation(); onInstall(p); }} style={{
-            padding: '5px 12px', borderRadius: 7, border: '0.5px solid rgba(200,169,110,0.3)',
-            background: 'rgba(200,169,110,0.06)', color: 'var(--accent)', fontSize: 11.5,
-            cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
-          }}>安装</button>
+          <motion.button
+            onClick={e => { e.stopPropagation(); onInstall(p); }}
+            disabled={installing}
+            whileTap={{ scale: 0.94 }}
+            style={{
+              padding: '5px 12px', borderRadius: 7,
+              border: '0.5px solid rgba(200,169,110,0.3)',
+              background: installing ? 'rgba(200,169,110,0.12)' : 'rgba(200,169,110,0.06)',
+              color: 'var(--accent)', fontSize: 11.5,
+              cursor: installing ? 'default' : 'pointer',
+              fontFamily: 'inherit', fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 5,
+              transition: 'all 0.2s',
+            }}
+          >
+            {installing ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+                  style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid var(--accent)', borderTopColor: 'transparent' }}
+                />
+                安装中
+              </>
+            ) : '安装'}
+          </motion.button>
         )}
       </div>
     </motion.div>
@@ -245,30 +288,46 @@ const PluginCard: React.FC<{
 
 // ── Toggle Switch ─────────────────────────────────────────
 const ToggleSwitch: React.FC<{ enabled: boolean; onToggle: (e: React.MouseEvent) => void }> = ({ enabled, onToggle }) => (
-  <div onClick={onToggle} style={{
-    width: 36, height: 20, borderRadius: 10, cursor: 'pointer',
-    background: enabled ? '#c8a96e' : 'var(--bg-surface3)',
-    border: `1px solid ${enabled ? '#c8a96e' : 'var(--border)'}`,
-    position: 'relative', transition: 'all 0.25s', flexShrink: 0,
-  }}>
-    <div style={{
-      width: 14, height: 14, borderRadius: '50%', background: '#fff',
-      position: 'absolute', top: 2, left: enabled ? 18 : 2,
-      transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-    }} />
-  </div>
+  <motion.div
+    onClick={onToggle}
+    whileTap={{ scale: 0.92 }}
+    style={{
+      width: 36, height: 20, borderRadius: 10, cursor: 'pointer',
+      background: enabled ? '#c8a96e' : 'var(--bg-surface3)',
+      border: `1px solid ${enabled ? '#c8a96e' : 'var(--border)'}`,
+      position: 'relative', flexShrink: 0,
+    }}
+  >
+    <motion.div
+      layout
+      animate={{ left: enabled ? 18 : 2 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      style={{
+        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+        position: 'absolute', top: 2,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+      }}
+    />
+  </motion.div>
 );
 
-// ── Plugin Detail ─────────────────────────────────────────
-const PluginDetail: React.FC<{ plugin: Plugin; onClose: () => void }> = ({ plugin: p, onClose }) => {
+// ── Plugin Detail Panel ───────────────────────────────────
+const PluginDetail: React.FC<{
+  plugin: Plugin;
+  isInstalled: boolean;
+  installing: boolean;
+  onClose: () => void;
+  onInstall: (p: Plugin) => Promise<void>;
+  onToggle: (p: Plugin) => void;
+}> = ({ plugin: p, isInstalled, installing, onClose, onInstall, onToggle }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '20px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>插件详情</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 16 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 18, lineHeight: 1 }}>✕</button>
       </div>
+
       <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-        {/* Icon + name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 14, background: 'var(--bg-surface2)',
@@ -281,17 +340,14 @@ const PluginDetail: React.FC<{ plugin: Plugin; onClose: () => void }> = ({ plugi
           </div>
         </div>
 
-        {/* Description */}
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 20 }}>{p.description}</div>
 
-        {/* Tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
           {p.tags.map(t => (
             <span key={t} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'var(--bg-surface2)', color: 'var(--text-tertiary)', border: '0.5px solid var(--border)' }}>{t}</span>
           ))}
         </div>
 
-        {/* Permissions */}
         {p.permissions.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 10, letterSpacing: '0.8px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>权限需求</div>
@@ -303,18 +359,38 @@ const PluginDetail: React.FC<{ plugin: Plugin; onClose: () => void }> = ({ plugi
             ))}
           </div>
         )}
+      </div>
 
-        {/* Settings preview */}
-        {p.settingsSchema.length > 0 && (
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '0.8px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>插件配置项</div>
-            {p.settingsSchema.slice(0, 3).map(s => (
-              <div key={s.key} style={{ marginBottom: 8, padding: '8px 12px', background: 'var(--bg-surface2)', borderRadius: 8, border: '0.5px solid var(--border)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>默认：{String(s.default)}</div>
-              </div>
-            ))}
+      {/* Action button */}
+      <div style={{ padding: 20, borderTop: '0.5px solid var(--border)' }}>
+        {isInstalled ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已安装</span>
+            <ToggleSwitch enabled={p.isEnabled} onToggle={() => onToggle(p)} />
           </div>
+        ) : (
+          <motion.button
+            onClick={() => onInstall(p)}
+            disabled={installing}
+            whileTap={{ scale: 0.97 }}
+            style={{
+              width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
+              background: installing ? 'rgba(200,169,110,0.3)' : 'linear-gradient(135deg, #c8a96e, #9a7040)',
+              color: '#fff', fontSize: 14, fontWeight: 500, cursor: installing ? 'default' : 'pointer',
+              fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {installing ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+                  style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff' }}
+                />
+                正在安装...
+              </>
+            ) : '安装插件'}
+          </motion.button>
         )}
       </div>
     </div>
