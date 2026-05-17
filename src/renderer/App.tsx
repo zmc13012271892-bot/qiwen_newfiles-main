@@ -413,9 +413,17 @@ const AppInner: React.FC = () => {
       } catch {}
     }
 
-    // 3. 没有任何账号 → 去登录页
+    // 3. 没有任何账号
     if (!authed) {
-      setStage('auth');
+      const done = await checkOnboardingDone();
+      if (done) {
+        // 做过引导但没有账号（清空了数据等极少数情况）→ 去登录页
+        setStage('auth');
+      } else {
+        // 全新用户：直接跳引导页，无需强制登录
+        dispatch(setLocalMode(undefined));
+        setStage('onboarding');
+      }
       return;
     }
 
