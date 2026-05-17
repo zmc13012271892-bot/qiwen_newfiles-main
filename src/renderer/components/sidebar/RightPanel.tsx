@@ -2,6 +2,7 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { setRightPanelTab } from '../../store/slices/appSlice';
+import { PluginSidebarPanel } from '../../plugins/PluginSidebarPanel';
 
 interface RightPanelProps {
   documentId?: string;
@@ -25,6 +26,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
       .slice(0, 20);
   }, [doc?.content]);
 
+  const TABS = [
+    { id: 'outline', label: '大纲' },
+    { id: 'stats',   label: '统计' },
+    { id: 'plugins', label: '插件' },
+    { id: 'ai',      label: 'AI' },
+  ] as const;
+
   return (
     <div style={{
       width: 260, borderLeft: '0.5px solid var(--border)',
@@ -33,32 +41,29 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
     }}>
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
-        {(['outline', 'stats', 'ai'] as const).map(tab => {
-          const labels = { outline: '大纲', stats: '统计', ai: 'AI' };
-          return (
-            <button
-              key={tab}
-              onClick={() => dispatch(setRightPanelTab(tab))}
-              style={{
-                flex: 1, padding: '11px 0', fontSize: 12,
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: rightPanelTab === tab ? 'var(--accent)' : 'var(--text-tertiary)',
-                borderBottom: `2px solid ${rightPanelTab === tab ? 'var(--accent)' : 'transparent'}`,
-                transition: 'all 0.2s', letterSpacing: 0.2,
-                fontFamily: 'inherit',
-              }}
-            >
-              {labels[tab]}
-            </button>
-          );
-        })}
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => dispatch(setRightPanelTab(tab.id as any))}
+            style={{
+              flex: 1, padding: '11px 0', fontSize: 11.5,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: rightPanelTab === tab.id ? 'var(--accent)' : 'var(--text-tertiary)',
+              borderBottom: `2px solid ${rightPanelTab === tab.id ? 'var(--accent)' : 'transparent'}`,
+              transition: 'all 0.2s', letterSpacing: 0.2,
+              fontFamily: 'inherit',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, scrollbarWidth: 'none' }}>
+      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
 
         {/* OUTLINE */}
         {rightPanelTab === 'outline' && (
-          <div>
+          <div style={{ padding: 16 }}>
             {outline.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-tertiary)', fontSize: 13 }}>
                 暂无标题结构<br />
@@ -90,7 +95,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
 
         {/* STATS */}
         {rightPanelTab === 'stats' && (
-          <div>
+          <div style={{ padding: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
               {[
                 { label: '字符数', value: charCount.toLocaleString() },
@@ -143,9 +148,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
           </div>
         )}
 
+        {/* PLUGINS */}
+        {rightPanelTab === 'plugins' && (
+          <PluginSidebarPanel documentContent={doc?.content ?? ''} />
+        )}
+
         {/* AI */}
         {rightPanelTab === 'ai' && (
-          <div>
+          <div style={{ padding: 16 }}>
             <div style={{ fontSize: 11, letterSpacing: '0.8px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 10 }}>快速操作</div>
             {[
               { icon: '✦', title: '继续写作', desc: '从当前位置延伸内容' },
