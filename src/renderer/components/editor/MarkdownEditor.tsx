@@ -15,6 +15,7 @@ import Highlight from '@tiptap/extension-highlight';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
 import CharacterCount from '@tiptap/extension-character-count';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
@@ -98,12 +99,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] } }),
       Placeholder.configure({ placeholder: '开始写作...', emptyEditorClass: 'is-editor-empty' }),
       Typography,
       Underline,
-      Highlight,
+      Highlight.configure({ multicolor: true }),
       TextStyle,
+      Color,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Link.configure({ openOnClick: false }),
       Image,

@@ -5,126 +5,208 @@ import { toggleRightPanel, setRightPanelTab } from '../../store/slices/appSlice'
 import { setFindOpen } from '../../store/slices/editorSlice';
 import { EditorMode } from './EditorArea';
 
+// ── 获取编辑器实例 ────────────────────────────────────────
+function getEditor(): any { return (window as any).__activeEditor; }
+
 // ── 内嵌弹窗 ─────────────────────────────────────────────
-interface InlineDialogProps {
-  title: string;
-  fields: { key: string; label: string; placeholder: string; type?: string }[];
-  onConfirm: (vals: Record<string, string>) => void;
-  onCancel: () => void;
-}
-const InlineDialog: React.FC<InlineDialogProps> = ({ title, fields, onConfirm, onCancel }) => {
+interface DialogField { key: string; label: string; placeholder: string; type?: string; }
+const InlineDialog: React.FC<{
+  title: string; fields: DialogField[];
+  onConfirm: (vals: Record<string, string>) => void; onCancel: () => void;
+}> = ({ title, fields, onConfirm, onCancel }) => {
   const [vals, setVals] = useState<Record<string, string>>({});
   return (
-    <div style={{ position:'fixed',inset:0,zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)',backdropFilter:'blur(4px)' }}
-      onClick={e => { if (e.target === e.currentTarget) onCancel(); }}>
-      <div style={{ background:'var(--bg-surface2)',border:'0.5px solid var(--border-md)',borderRadius:14,padding:24,width:360,boxShadow:'0 24px 60px rgba(0,0,0,0.5)' }}>
-        <div style={{ fontSize:15,fontWeight:500,color:'var(--text-primary)',marginBottom:18 }}>{title}</div>
-        {fields.map(f => (
+    <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.55)', backdropFilter:'blur(6px)' }}
+      onClick={e => { if (e.target===e.currentTarget) onCancel(); }}>
+      <div style={{ background:'var(--bg-surface2)', border:'0.5px solid var(--border-md)', borderRadius:16, padding:28, width:380, boxShadow:'0 32px 80px rgba(0,0,0,0.6)' }}>
+        <div style={{ fontSize:15, fontWeight:500, color:'var(--text-primary)', marginBottom:20 }}>{title}</div>
+        {fields.map((f, i) => (
           <div key={f.key} style={{ marginBottom:14 }}>
-            <div style={{ fontSize:12,color:'var(--text-tertiary)',marginBottom:5 }}>{f.label}</div>
-            <input type={f.type||'text'} placeholder={f.placeholder} autoFocus={fields[0].key===f.key}
-              onChange={e => setVals(v=>({...v,[f.key]:e.target.value}))}
-              onKeyDown={e=>{if(e.key==='Enter')onConfirm(vals);if(e.key==='Escape')onCancel();}}
-              style={{ width:'100%',padding:'9px 12px',borderRadius:8,background:'var(--bg-surface3)',border:'0.5px solid var(--border)',color:'var(--text-primary)',fontSize:13.5,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const }} />
+            <div style={{ fontSize:12, color:'var(--text-tertiary)', marginBottom:5 }}>{f.label}</div>
+            <input
+              type={f.type||'text'} placeholder={f.placeholder}
+              autoFocus={i===0}
+              onChange={e => setVals(v => ({ ...v, [f.key]: e.target.value }))}
+              onKeyDown={e => { if (e.key==='Enter') onConfirm(vals); if (e.key==='Escape') onCancel(); }}
+              style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'var(--bg-surface3)', border:'0.5px solid var(--border)', color:'var(--text-primary)', fontSize:13.5, outline:'none', fontFamily:'inherit', boxSizing:'border-box' as const }}
+            />
           </div>
         ))}
-        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:20 }}>
-          <button onClick={onCancel} style={{ padding:'8px 18px',borderRadius:8,border:'0.5px solid var(--border)',background:'transparent',color:'var(--text-secondary)',cursor:'pointer',fontSize:13,fontFamily:'inherit' }}>取消</button>
-          <button onClick={()=>onConfirm(vals)} style={{ padding:'8px 18px',borderRadius:8,border:'none',background:'linear-gradient(135deg,#c8a96e,#a07840)',color:'#fff',cursor:'pointer',fontSize:13,fontFamily:'inherit',fontWeight:500 }}>确定</button>
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:22 }}>
+          <button onClick={onCancel} style={{ padding:'8px 20px', borderRadius:9, border:'0.5px solid var(--border)', background:'transparent', color:'var(--text-secondary)', cursor:'pointer', fontSize:13, fontFamily:'inherit' }}>取消</button>
+          <button onClick={() => onConfirm(vals)} style={{ padding:'8px 20px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#c8a96e,#a07840)', color:'#fff', cursor:'pointer', fontSize:13, fontFamily:'inherit', fontWeight:500 }}>确定</button>
         </div>
       </div>
     </div>
   );
 };
 
-// ── 工具栏按钮 ────────────────────────────────────────────
-interface BtnProps { onClick?:()=>void; active?:boolean; title?:string; children?:React.ReactNode; label?:string; disabled?:boolean; danger?:boolean; }
-const Btn: React.FC<BtnProps> = ({ onClick, active, title, children, label, disabled, danger }) => (
-  <button onClick={onClick} title={title} disabled={disabled} style={{
-    width:label?'auto':28, height:28, padding:label?'0 7px':0, borderRadius:6, border:'none',
-    background:active?'rgba(200,169,110,0.15)':'transparent',
-    color:disabled?'var(--text-tertiary)':danger?'#e87a7a':active?'var(--accent)':'var(--text-secondary)',
-    cursor:disabled?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-    fontSize:label?12:13, fontWeight:active?600:400, gap:4, transition:'all 0.12s', flexShrink:0,
-    boxShadow:active?'inset 0 0 0 1px rgba(200,169,110,0.3)':'none', opacity:disabled?0.4:1,
-  }}
-    onMouseEnter={e=>{if(!active&&!disabled)(e.currentTarget as HTMLElement).style.background='var(--bg-surface3)';}}
-    onMouseLeave={e=>{if(!active&&!disabled)(e.currentTarget as HTMLElement).style.background='transparent';}}
-  >{children}{label&&<span>{label}</span>}</button>
+// ── 工具按钮 ──────────────────────────────────────────────
+const Btn: React.FC<{
+  onClick?: (e: React.MouseEvent) => void; active?: boolean; title?: string;
+  children?: React.ReactNode; disabled?: boolean;
+}> = ({ onClick, active, title, children, disabled }) => (
+  <button
+    onClick={onClick} title={title} disabled={disabled}
+    style={{
+      width:30, height:30, padding:0, borderRadius:7, border:'none',
+      background: active ? 'rgba(200,169,110,0.18)' : 'transparent',
+      color: disabled ? 'var(--text-tertiary)' : active ? '#c8a96e' : 'var(--text-secondary)',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      fontSize:13, fontWeight: active ? 600 : 400,
+      transition:'background 0.1s, color 0.1s', flexShrink:0,
+      boxShadow: active ? 'inset 0 0 0 1px rgba(200,169,110,0.35)' : 'none',
+      opacity: disabled ? 0.4 : 1,
+    }}
+    onMouseEnter={e => { if (!disabled && !active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface3)'; }}
+    onMouseLeave={e => { if (!disabled && !active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+  >{children}</button>
 );
-const Sep = () => <div style={{ width:0.5, height:18, background:'var(--border)', margin:'0 3px', flexShrink:0 }} />;
-function getEditor(): any { return (window as any).__activeEditor; }
 
-// ── 下拉菜单 ──────────────────────────────────────────────
-const Dropdown: React.FC<{ trigger:React.ReactNode; children:React.ReactNode; width?:number }> = ({ trigger, children, width=160 }) => {
+// ── 分割线 ────────────────────────────────────────────────
+const Sep = () => <div style={{ width:0.5, height:18, background:'var(--border)', margin:'0 2px', flexShrink:0 }} />;
+
+// ── 下拉菜单（不依赖 document click，用 blur 关闭）────────
+const ToolDropdown: React.FC<{
+  label: React.ReactNode; children: React.ReactNode; minWidth?: number; active?: boolean;
+}> = ({ label, children, minWidth=160, active }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // 点外部关闭
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    // 用 setTimeout 避免触发它的点击事件立刻关掉自己
+    const tid = setTimeout(() => document.addEventListener('mousedown', handle), 0);
+    return () => { clearTimeout(tid); document.removeEventListener('mousedown', handle); };
   }, [open]);
+
   return (
     <div ref={ref} style={{ position:'relative', flexShrink:0 }}>
-      <div onClick={()=>setOpen(o=>!o)} style={{ cursor:'pointer' }}>{trigger}</div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          height:30, padding:'0 8px', borderRadius:7, border: active ? '0.5px solid rgba(200,169,110,0.35)' : '0.5px solid var(--border)',
+          background: open ? 'var(--bg-surface3)' : active ? 'rgba(200,169,110,0.1)' : 'var(--bg-surface3)',
+          color: active ? '#c8a96e' : 'var(--text-secondary)', cursor:'pointer',
+          display:'flex', alignItems:'center', gap:5, fontSize:12.5,
+          fontFamily:'inherit', flexShrink:0, transition:'all 0.1s',
+        }}
+        onMouseEnter={e => { if (!open) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,169,110,0.3)'; }}
+        onMouseLeave={e => { if (!open) (e.currentTarget as HTMLElement).style.borderColor = active ? 'rgba(200,169,110,0.35)' : 'var(--border)'; }}
+      >
+        {label}
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity:0.5, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       {open && (
-        <div style={{ position:'absolute',top:'100%',left:0,zIndex:200,background:'var(--bg-surface2)',border:'0.5px solid var(--border-md)',borderRadius:10,padding:'4px 0',minWidth:width,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',marginTop:4 }}
-          onClick={()=>setOpen(false)}>
-          {children}
+        <div style={{
+          position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:500,
+          background:'var(--bg-surface2)', border:'0.5px solid var(--border-md)',
+          borderRadius:11, padding:'4px 0', minWidth:minWidth,
+          boxShadow:'0 12px 40px rgba(0,0,0,0.5)',
+        }}>
+          <div onClick={() => setOpen(false)}>
+            {children}
+          </div>
         </div>
       )}
     </div>
   );
 };
-const DropItem: React.FC<{ onClick:()=>void; active?:boolean; children:React.ReactNode; shortcut?:string; danger?:boolean }> = ({ onClick, active, children, shortcut, danger }) => (
-  <div onClick={onClick} style={{ padding:'7px 14px',fontSize:12.5,cursor:'pointer',color:danger?'#e87a7a':active?'var(--accent)':'var(--text-primary)',background:active?'rgba(200,169,110,0.08)':'transparent',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,transition:'background 0.1s' }}
-    onMouseEnter={e=>{if(!active)(e.currentTarget as HTMLElement).style.background='var(--bg-hover)';}}
-    onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background=active?'rgba(200,169,110,0.08)':'transparent';}}>
+
+const DItem: React.FC<{
+  onClick: () => void; active?: boolean; danger?: boolean;
+  children: React.ReactNode; shortcut?: string;
+}> = ({ onClick, active, danger, children, shortcut }) => (
+  <div
+    onClick={onClick}
+    style={{
+      padding:'7px 14px', fontSize:13, cursor:'pointer',
+      color: danger ? '#e87a7a' : active ? '#c8a96e' : 'var(--text-primary)',
+      background: active ? 'rgba(200,169,110,0.08)' : 'transparent',
+      display:'flex', alignItems:'center', justifyContent:'space-between', gap:16,
+      transition:'background 0.1s',
+    }}
+    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = active ? 'rgba(200,169,110,0.12)' : 'var(--bg-hover)'; }}
+    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = active ? 'rgba(200,169,110,0.08)' : 'transparent'; }}
+  >
     <span>{children}</span>
-    {shortcut && <span style={{ fontSize:11,color:'var(--text-tertiary)',fontFamily:'monospace' }}>{shortcut}</span>}
+    {shortcut && <span style={{ fontSize:11, color:'var(--text-tertiary)', fontFamily:'monospace', flexShrink:0 }}>{shortcut}</span>}
   </div>
 );
-const DropSep = () => <div style={{ height:0.5,background:'var(--border)',margin:'4px 0' }} />;
 
-// ── 颜色选择器 ────────────────────────────────────────────
-const COLORS = ['#e87a7a','#e8a97a','#e8d07a','#7ae88a','#7ab8e8','#a87ae8','#e87ab8','#c8a96e','#9b9890','#eceae5','transparent'];
-const ColorPicker: React.FC<{ onSelect:(c:string)=>void; label:string }> = ({ onSelect, label }) => (
-  <Dropdown width={196} trigger={
-    <button style={{ height:28,padding:'0 7px',borderRadius:6,border:'none',background:'transparent',color:'var(--text-secondary)',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:12,flexShrink:0 }}
-      onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--bg-surface3)';}}
-      onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background='transparent';}}>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-      <span style={{ fontSize:11 }}>{label}</span>
-      <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-  }>
-    <div style={{ padding:'10px 14px' }}>
-      <div style={{ fontSize:11,color:'var(--text-tertiary)',marginBottom:8 }}>选择颜色</div>
-      <div style={{ display:'flex',flexWrap:'wrap' as const,gap:6 }}>
-        {COLORS.map(c => (
-          <div key={c} onClick={()=>onSelect(c)} style={{ width:20,height:20,borderRadius:5,cursor:'pointer',background:c==='transparent'?'var(--bg-surface3)':c,border:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'var(--text-tertiary)' }}>
-            {c==='transparent'?'×':''}
+const DSep = () => <div style={{ height:0.5, background:'var(--border)', margin:'3px 0' }} />;
+
+// ── 颜色选择器下拉 ────────────────────────────────────────
+const PRESET_COLORS = ['#e87a7a','#e8a97a','#e8d07a','#7ae88a','#7ab8e8','#a87ae8','#e87ab8','#c8a96e','#aaaaaa','#eceae5'];
+
+const ColorDropdown: React.FC<{
+  label: string; icon: React.ReactNode;
+  onSelect: (color: string | null) => void;
+}> = ({ label, icon, onSelect }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const tid = setTimeout(() => document.addEventListener('mousedown', handle), 0);
+    return () => { clearTimeout(tid); document.removeEventListener('mousedown', handle); };
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position:'relative', flexShrink:0 }}>
+      <button onClick={() => setOpen(o => !o)} title={label} style={{
+        width:30, height:30, borderRadius:7, border:'none', background:'transparent',
+        color:'var(--text-secondary)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+        transition:'background 0.1s',
+      }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface3)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+      >{icon}</button>
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:500,
+          background:'var(--bg-surface2)', border:'0.5px solid var(--border-md)',
+          borderRadius:11, padding:12, boxShadow:'0 12px 40px rgba(0,0,0,0.5)', minWidth:188,
+        }}>
+          <div style={{ fontSize:11, color:'var(--text-tertiary)', marginBottom:8, letterSpacing:'0.5px' }}>{label}</div>
+          <div style={{ display:'flex', flexWrap:'wrap' as const, gap:6, marginBottom:10 }}>
+            {PRESET_COLORS.map(c => (
+              <div key={c} onClick={() => { onSelect(c); setOpen(false); }} style={{
+                width:22, height:22, borderRadius:6, cursor:'pointer', background:c,
+                border:'2px solid transparent', transition:'border-color 0.1s',
+                boxSizing:'border-box' as const,
+              }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.4)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
+              />
+            ))}
           </div>
-        ))}
-      </div>
-      <div style={{ marginTop:10,display:'flex',alignItems:'center',gap:6 }}>
-        <span style={{ fontSize:11,color:'var(--text-tertiary)' }}>自定义：</span>
-        <input type="color" onChange={e=>onSelect(e.target.value)} style={{ width:28,height:22,border:'none',padding:0,background:'none',cursor:'pointer',borderRadius:4 }} />
-      </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:11, color:'var(--text-tertiary)' }}>自定义</span>
+            <input type="color" onChange={e => { onSelect(e.target.value); }}
+              style={{ width:30, height:22, border:'none', padding:0, background:'none', cursor:'pointer', borderRadius:4 }} />
+          </div>
+          <div style={{ marginTop:8, paddingTop:8, borderTop:'0.5px solid var(--border)' }}>
+            <div onClick={() => { onSelect(null); setOpen(false); }} style={{ fontSize:12, color:'var(--text-tertiary)', cursor:'pointer', padding:'3px 0' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)'; }}
+            >✕ 清除{label}</div>
+          </div>
+        </div>
+      )}
     </div>
-  </Dropdown>
-);
-
-// ── 对齐图标 ──────────────────────────────────────────────
-const AlignIcon: React.FC<{ a:'left'|'center'|'right'|'justify' }> = ({ a }) => {
-  const p: Record<string,string[]> = { left:['M3 6h18','M3 12h12','M3 18h15'], center:['M3 6h18','M6 12h12','M4 18h16'], right:['M3 6h18','M9 12h12','M6 18h15'], justify:['M3 6h18','M3 12h18','M3 18h18'] };
-  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{p[a].map((d,i)=><path key={i} d={d}/>)}</svg>;
+  );
 };
 
-// ── 主组件 ────────────────────────────────────────────────
-const FONT_SIZES = ['10','11','12','13','14','15','16','18','20','22','24','28','32','36','48','64','96'];
-const FONT_FAMILIES = [
+// ── 主工具栏 ──────────────────────────────────────────────
+const FONT_SIZES = ['10','11','12','13','14','15','16','18','20','22','24','28','32','36','48','64'];
+const FONT_FAMILIES: { label: string; value: string }[] = [
   { label:'默认（无衬线）', value:'' },
   { label:'Noto Serif SC', value:'"Noto Serif SC",serif' },
   { label:'Georgia', value:'Georgia,serif' },
@@ -134,12 +216,14 @@ const FONT_FAMILIES = [
 const LINE_SPACINGS = [
   { label:'1.0 紧凑', value:'1' },
   { label:'1.5 标准', value:'1.5' },
-  { label:'1.8 舒适', value:'1.8' },
+  { label:'1.8 舒适 (默认)', value:'1.8' },
   { label:'2.0 宽松', value:'2' },
   { label:'2.5 超宽', value:'2.5' },
 ];
 
-interface EditorToolbarProps { isSaving?:boolean; mode:EditorMode; onModeChange:(mode:EditorMode)=>void; }
+interface EditorToolbarProps {
+  isSaving?: boolean; mode: EditorMode; onModeChange: (mode: EditorMode) => void;
+}
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, onModeChange }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -147,34 +231,31 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
   const [tick, setTick] = useState(0);
   const [dialog, setDialog] = useState<null|'link'|'image'|'table'|'video'>(null);
   const [lineSpacing, setLineSpacing] = useState('1.8');
-  const refresh = useCallback(() => setTimeout(() => setTick(t=>t+1), 30), []);
+
+  // 订阅编辑器事务，让工具栏按钮状态实时更新
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 200);
+    return () => clearInterval(interval);
+  }, []);
 
   const e = getEditor();
-  const is = (name: string, attrs?: any) => e?.isActive(name, attrs) ?? false;
-  const cmd = (fn: (chain: any) => any) => { const ed = getEditor(); if (ed) { fn(ed.chain().focus()); refresh(); } };
-
-  const currentHeading = is('heading',{level:1})?'h1':is('heading',{level:2})?'h2':is('heading',{level:3})?'h3':is('heading',{level:4})?'h4':is('heading',{level:5})?'h5':'p';
-
-  const handlePrint = () => {
-    const ed = getEditor(); if (!ed) return;
-    const win = window.open('','_blank'); if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Noto Serif SC',Georgia,serif;max-width:800px;margin:40px auto;line-height:1.8;color:#1a1a1a}h1,h2,h3{font-weight:400}code{background:#f4f4f4;padding:2px 6px;border-radius:4px}pre{background:#f4f4f4;padding:16px;border-radius:8px}blockquote{border-left:3px solid #c8a96e;padding-left:16px;color:#666}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px 12px}@media print{body{margin:20px}}</style></head><body>${ed.getHTML()}</body></html>`);
-    win.document.close(); win.print();
+  const is = (name: string, attrs?: any): boolean => {
+    try { return e?.isActive(name, attrs) ?? false; } catch { return false; }
   };
 
-  const handleCopyMarkdown = () => {
-    const ed = getEditor(); if (!ed) return;
-    const md = ed.getHTML()
-      .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi,(_:any,l:string,t:string)=>'#'.repeat(Number(l))+' '+t+'\n')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gi,'**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gi,'*$1*')
-      .replace(/<code[^>]*>(.*?)<\/code>/gi,'`$1`')
-      .replace(/<a href="([^"]*)"[^>]*>(.*?)<\/a>/gi,'[$2]($1)')
-      .replace(/<br\s*\/?>/gi,'\n')
-      .replace(/<p[^>]*>(.*?)<\/p>/gi,'$1\n\n')
-      .replace(/<[^>]+>/g,'').trim();
-    navigator.clipboard.writeText(md);
-  };
+  // 安全执行编辑器命令：先 focus，再执行，避免失焦时命令失效
+  const run = useCallback((fn: (e: any) => void) => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.commands.focus();
+    try { fn(editor); } catch (err) { console.warn('Editor command error:', err); }
+    setTimeout(() => setTick(t => t + 1), 50);
+  }, []);
+
+  const currentHeading =
+    is('heading',{level:1}) ? 'h1' : is('heading',{level:2}) ? 'h2' :
+    is('heading',{level:3}) ? 'h3' : is('heading',{level:4}) ? 'h4' :
+    is('heading',{level:5}) ? 'h5' : is('heading',{level:6}) ? 'h6' : 'p';
 
   const applyLineSpacing = (v: string) => {
     setLineSpacing(v);
@@ -182,231 +263,309 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
     if (el) el.style.lineHeight = v;
   };
 
-  const applyFontFamily = (v: string) => {
-    const el = document.querySelector('.ProseMirror') as HTMLElement;
-    if (el) el.style.fontFamily = v || '';
+  const handlePrint = () => {
+    const ed = getEditor(); if (!ed) return;
+    const win = window.open('', '_blank'); if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body{font-family:'Noto Serif SC',Georgia,serif;max-width:800px;margin:40px auto;line-height:1.8;color:#1a1a1a}h1,h2,h3{font-weight:400}code{background:#f4f4f4;padding:2px 6px;border-radius:4px}pre{background:#f4f4f4;padding:16px;border-radius:8px}blockquote{border-left:3px solid #c8a96e;padding-left:16px;color:#666;margin:12px 0}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px 12px}@media print{body{margin:20px}}</style>
+</head><body>${ed.getHTML()}</body></html>`);
+    win.document.close(); win.print();
   };
 
-  const applyFontSize = (v: string) => {
-    cmd(c => c.setFontSize?.(v+'px') ?? c);
-    const el = document.querySelector('.ProseMirror') as HTMLElement;
-    if (el) el.style.fontSize = v+'px';
+  // 右侧面板按钮：点当前激活的关闭，点其他的切换到对应 tab
+  const handlePanelBtn = (tab: 'outline'|'stats'|'plugins'|'ai') => {
+    if (rightPanelOpen && rightPanelTab === tab) {
+      dispatch(toggleRightPanel());
+    } else {
+      dispatch(setRightPanelTab(tab));
+    }
   };
 
   return (
     <>
-      {/* ── 弹窗 ─────────────────────────────────────── */}
-      {dialog === 'link' && <InlineDialog title="插入链接"
-        fields={[{key:'text',label:'显示文字（选填）',placeholder:'链接文字'},{key:'url',label:'链接地址',placeholder:'https://'}]}
-        onConfirm={({url,text})=>{ setDialog(null); if(!url)return; const ed=getEditor(); if(!ed)return; if(text) ed.chain().focus().insertContent(`<a href="${url}">${text}</a>`).run(); else ed.chain().focus().setLink({href:url}).run(); }}
-        onCancel={()=>setDialog(null)} />}
-      {dialog === 'image' && <InlineDialog title="插入图片"
-        fields={[{key:'src',label:'图片地址',placeholder:'https://example.com/img.png'},{key:'alt',label:'描述（选填）',placeholder:'图片描述'},{key:'width',label:'宽度 px（选填）',placeholder:'500'}]}
-        onConfirm={({src,alt,width})=>{ setDialog(null); if(src) cmd(c=>c.setImage({src,alt:alt||'',width:width?parseInt(width):undefined}).run()); }}
-        onCancel={()=>setDialog(null)} />}
-      {dialog === 'table' && <InlineDialog title="插入表格"
-        fields={[{key:'rows',label:'行数',placeholder:'3'},{key:'cols',label:'列数',placeholder:'3'}]}
-        onConfirm={({rows,cols})=>{ setDialog(null); cmd(ch=>ch.insertTable({rows:parseInt(rows)||3,cols:parseInt(cols)||3,withHeaderRow:true}).run()); }}
-        onCancel={()=>setDialog(null)} />}
-      {dialog === 'video' && <InlineDialog title="嵌入视频"
-        fields={[{key:'url',label:'视频链接（YouTube/Bilibili）',placeholder:'https://www.youtube.com/watch?v=...'}]}
-        onConfirm={({url})=>{ setDialog(null); if(!url)return; let em=url; if(url.includes('youtube.com/watch')){try{const id=new URL(url).searchParams.get('v');if(id)em=`https://www.youtube.com/embed/${id}`;}catch{}} else if(url.includes('bilibili.com')){const m=url.match(/\/video\/(BV[a-zA-Z0-9]+)/);if(m)em=`https://player.bilibili.com/player.html?bvid=${m[1]}`;} cmd(c=>c.insertContent(`<iframe src="${em}" width="100%" height="315" frameborder="0" allowfullscreen style="border-radius:8px"></iframe>`).run()); }}
-        onCancel={()=>setDialog(null)} />}
+      {/* 弹窗层 */}
+      {dialog === 'link' && (
+        <InlineDialog title="插入链接"
+          fields={[{key:'text',label:'显示文字（选填）',placeholder:'链接文字'},{key:'url',label:'链接地址 *',placeholder:'https://'}]}
+          onConfirm={({url,text}) => {
+            setDialog(null); if (!url) return;
+            run(ed => {
+              if (text) ed.commands.insertContent(`<a href="${url}">${text}</a>`);
+              else ed.chain().setLink({href:url}).run();
+            });
+          }}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'image' && (
+        <InlineDialog title="插入图片"
+          fields={[{key:'src',label:'图片地址 *',placeholder:'https://example.com/image.png'},{key:'alt',label:'替代文字（选填）',placeholder:'图片描述'},{key:'width',label:'宽度 px（选填）',placeholder:'500'}]}
+          onConfirm={({src,alt,width}) => {
+            setDialog(null); if (!src) return;
+            run(ed => ed.chain().setImage({src, alt:alt||'', ...(width?{width:parseInt(width)}:{})}).run());
+          }}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'table' && (
+        <InlineDialog title="插入表格"
+          fields={[{key:'rows',label:'行数',placeholder:'3'},{key:'cols',label:'列数',placeholder:'3'}]}
+          onConfirm={({rows,cols}) => {
+            setDialog(null);
+            run(ed => ed.chain().insertTable({rows:parseInt(rows)||3, cols:parseInt(cols)||3, withHeaderRow:true}).run());
+          }}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'video' && (
+        <InlineDialog title="嵌入视频"
+          fields={[{key:'url',label:'视频链接（YouTube / Bilibili）',placeholder:'https://www.youtube.com/watch?v=...'}]}
+          onConfirm={({url}) => {
+            setDialog(null); if (!url) return;
+            let embed = url;
+            try {
+              if (url.includes('youtube.com/watch')) { const id=new URL(url).searchParams.get('v'); if(id) embed=`https://www.youtube.com/embed/${id}`; }
+              else if (url.includes('bilibili.com')) { const m=url.match(/\/video\/(BV[a-zA-Z0-9]+)/); if(m) embed=`https://player.bilibili.com/player.html?bvid=${m[1]}`; }
+            } catch {}
+            run(ed => ed.commands.insertContent(`<iframe src="${embed}" width="100%" height="315" frameborder="0" allowfullscreen style="border-radius:8px;display:block;max-width:100%"></iframe>`));
+          }}
+          onCancel={() => setDialog(null)}
+        />
+      )}
 
-      {/* ── 主工具栏 ─────────────────────────────────── */}
-      <div style={{ borderBottom:'0.5px solid var(--border)',display:'flex',alignItems:'center',padding:'0 6px',gap:1,background:'var(--bg-surface)',flexShrink:0,overflowX:'auto',minHeight:40,flexWrap:'nowrap',userSelect:'none' as const }}>
+      {/* ── 工具栏主体 ────────────────────────────────── */}
+      <div style={{
+        borderBottom:'0.5px solid var(--border)', display:'flex', alignItems:'center',
+        padding:'0 6px', gap:2, background:'var(--bg-surface)', flexShrink:0,
+        overflowX:'auto', minHeight:42, flexWrap:'nowrap' as const, userSelect:'none' as const,
+      }}>
 
-        {/* 撤销/重做 */}
-        <Btn title="撤销 Ctrl+Z" onClick={()=>cmd(c=>c.undo().run())}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 3L3 13"/></svg>
+        {/* 撤销 / 重做 */}
+        <Btn title="撤销 Ctrl+Z" onClick={() => run(ed => ed.commands.undo())}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 3L3 13"/></svg>
         </Btn>
-        <Btn title="重做 Ctrl+Y" onClick={()=>cmd(c=>c.redo().run())}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3L21 13"/></svg>
+        <Btn title="重做 Ctrl+Y" onClick={() => run(ed => ed.commands.redo())}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3L21 13"/></svg>
         </Btn>
 
         <Sep />
 
         {/* 段落样式 */}
-        <Dropdown width={150} trigger={
-          <button style={{ height:26,padding:'0 8px',borderRadius:6,fontSize:12,background:'var(--bg-surface3)',border:'0.5px solid var(--border)',color:'var(--text-secondary)',cursor:'pointer',outline:'none',fontFamily:'inherit',flexShrink:0,display:'flex',alignItems:'center',gap:5 }}>
-            {currentHeading==='p'?'正文':`标题 ${currentHeading[1]}`}
-            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        }>
-          {[{v:'p',l:'正文',s:'Ctrl+Alt+0'},{v:'h1',l:'标题 1',s:'Ctrl+Alt+1'},{v:'h2',l:'标题 2',s:'Ctrl+Alt+2'},{v:'h3',l:'标题 3',s:'Ctrl+Alt+3'},{v:'h4',l:'标题 4',s:'Ctrl+Alt+4'},{v:'h5',l:'标题 5',s:'Ctrl+Alt+5'}].map(({v,l,s})=>(
-            <DropItem key={v} active={currentHeading===v} shortcut={s} onClick={()=>{ const ed=getEditor();if(!ed)return; if(v==='p')ed.chain().focus().setParagraph().run(); else ed.chain().focus().toggleHeading({level:parseInt(v[1]) as 1|2|3|4|5}).run(); refresh(); }}>{l}</DropItem>
+        <ToolDropdown label={currentHeading === 'p' ? '正文' : `标题 ${currentHeading[1]}`} minWidth={150}>
+          {[{v:'p',l:'正文'},{v:'h1',l:'标题 1'},{v:'h2',l:'标题 2'},{v:'h3',l:'标题 3'},{v:'h4',l:'标题 4'},{v:'h5',l:'标题 5'},{v:'h6',l:'标题 6'}].map(({v,l}) => (
+            <DItem key={v} active={currentHeading===v} onClick={() => run(ed => {
+              if (v==='p') ed.commands.setParagraph();
+              else ed.commands.setHeading({level:parseInt(v[1]) as 1|2|3|4|5|6});
+            })}>{l}</DItem>
           ))}
-        </Dropdown>
+        </ToolDropdown>
 
         <Sep />
 
         {/* 字体 */}
-        <Dropdown width={200} trigger={
-          <button style={{ height:26,padding:'0 8px',borderRadius:6,fontSize:12,background:'var(--bg-surface3)',border:'0.5px solid var(--border)',color:'var(--text-secondary)',cursor:'pointer',fontFamily:'inherit',flexShrink:0,display:'flex',alignItems:'center',gap:5 }}>
-            字体 <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        }>
-          {FONT_FAMILIES.map(f=><DropItem key={f.value} onClick={()=>applyFontFamily(f.value)}><span style={{fontFamily:f.value||'inherit'}}>{f.label}</span></DropItem>)}
-        </Dropdown>
+        <ToolDropdown label="字体" minWidth={200}>
+          {FONT_FAMILIES.map(f => (
+            <DItem key={f.value} onClick={() => {
+              const el = document.querySelector('.ProseMirror') as HTMLElement;
+              if (el) el.style.fontFamily = f.value;
+            }}><span style={{fontFamily:f.value||'inherit'}}>{f.label}</span></DItem>
+          ))}
+        </ToolDropdown>
 
-        {/* 字体大小 */}
-        <div style={{ display:'flex',alignItems:'center',gap:0,flexShrink:0 }}>
-          <button onClick={()=>{ const el=document.querySelector('.ProseMirror') as HTMLElement; const cur=parseInt(el?.style.fontSize||'15'); applyFontSize(String(Math.max(8,cur-1))); }}
-            style={{ width:20,height:26,border:'0.5px solid var(--border)',borderRight:'none',background:'var(--bg-surface3)',cursor:'pointer',color:'var(--text-secondary)',fontSize:15,borderRadius:'6px 0 0 6px',display:'flex',alignItems:'center',justifyContent:'center' }}>−</button>
-          <select onChange={e=>applyFontSize(e.target.value)} defaultValue="15" style={{ height:26,padding:'0 2px',borderRadius:0,fontSize:12,background:'var(--bg-surface3)',border:'0.5px solid var(--border)',color:'var(--text-secondary)',cursor:'pointer',outline:'none',fontFamily:'inherit',width:46,textAlign:'center' as const }}>
-            {FONT_SIZES.map(s=><option key={s} value={s}>{s}</option>)}
+        {/* 字号 */}
+        <div style={{ display:'flex', alignItems:'center', flexShrink:0 }}>
+          <button onClick={() => {
+            const el = document.querySelector('.ProseMirror') as HTMLElement;
+            const cur = parseInt(el?.style.fontSize || '15');
+            const s = String(Math.max(8, cur-1));
+            if (el) el.style.fontSize = s+'px';
+          }} style={{ width:20, height:30, border:'0.5px solid var(--border)', borderRight:'none', background:'var(--bg-surface3)', cursor:'pointer', color:'var(--text-secondary)', fontSize:16, borderRadius:'7px 0 0 7px', display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
+          <select onChange={e => {
+            const el = document.querySelector('.ProseMirror') as HTMLElement;
+            if (el) el.style.fontSize = e.target.value+'px';
+          }} defaultValue="15" style={{ height:30, padding:'0 2px', borderRadius:0, fontSize:12, background:'var(--bg-surface3)', border:'0.5px solid var(--border)', borderLeft:'none', borderRight:'none', color:'var(--text-secondary)', cursor:'pointer', outline:'none', fontFamily:'inherit', width:50, textAlign:'center' as const }}>
+            {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <button onClick={()=>{ const el=document.querySelector('.ProseMirror') as HTMLElement; const cur=parseInt(el?.style.fontSize||'15'); applyFontSize(String(Math.min(96,cur+1))); }}
-            style={{ width:20,height:26,border:'0.5px solid var(--border)',borderLeft:'none',background:'var(--bg-surface3)',cursor:'pointer',color:'var(--text-secondary)',fontSize:15,borderRadius:'0 6px 6px 0',display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+          <button onClick={() => {
+            const el = document.querySelector('.ProseMirror') as HTMLElement;
+            const cur = parseInt(el?.style.fontSize || '15');
+            const s = String(Math.min(96, cur+1));
+            if (el) el.style.fontSize = s+'px';
+          }} style={{ width:20, height:30, border:'0.5px solid var(--border)', borderLeft:'none', background:'var(--bg-surface3)', cursor:'pointer', color:'var(--text-secondary)', fontSize:16, borderRadius:'0 7px 7px 0', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
         </div>
 
         <Sep />
 
         {/* 文字格式 */}
-        <Btn title="加粗 Ctrl+B" active={is('bold')} onClick={()=>cmd(c=>c.toggleBold().run())}><strong style={{fontSize:13}}>B</strong></Btn>
-        <Btn title="斜体 Ctrl+I" active={is('italic')} onClick={()=>cmd(c=>c.toggleItalic().run())}><em style={{fontSize:13}}>I</em></Btn>
-        <Btn title="下划线 Ctrl+U" active={is('underline')} onClick={()=>cmd(c=>c.toggleUnderline().run())}><span style={{textDecoration:'underline',fontSize:13}}>U</span></Btn>
-        <Btn title="删除线" active={is('strike')} onClick={()=>cmd(c=>c.toggleStrike().run())}><span style={{textDecoration:'line-through',fontSize:13}}>S</span></Btn>
-        <Btn title="高亮" active={is('highlight')} onClick={()=>cmd(c=>c.toggleHighlight().run())}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.232 5.232l3.536 3.536-6.768 6.768-4.95.707.707-4.95 6.475-6.061zm1.414-1.414a2 2 0 0 1 2.828 2.828L5.293 20.78l-5.657.707.707-5.657L16.646 3.818z"/></svg>
+        <Btn title="加粗 Ctrl+B" active={is('bold')} onClick={() => run(ed => ed.commands.toggleBold())}>
+          <strong style={{fontSize:13, letterSpacing:0}}>B</strong>
         </Btn>
-        <Btn title="上标" active={is('superscript')} onClick={()=>cmd(c=>c.toggleSuperscript?.()??c)}><span style={{fontSize:11}}>x<sup>2</sup></span></Btn>
-        <Btn title="下标" active={is('subscript')} onClick={()=>cmd(c=>c.toggleSubscript?.()??c)}><span style={{fontSize:11}}>x<sub>2</sub></span></Btn>
-        <Btn title="行内代码 Ctrl+E" active={is('code')} onClick={()=>cmd(c=>c.toggleCode().run())}>
+        <Btn title="斜体 Ctrl+I" active={is('italic')} onClick={() => run(ed => ed.commands.toggleItalic())}>
+          <em style={{fontSize:13}}>I</em>
+        </Btn>
+        <Btn title="下划线 Ctrl+U" active={is('underline')} onClick={() => run(ed => ed.commands.toggleUnderline())}>
+          <span style={{textDecoration:'underline', fontSize:13}}>U</span>
+        </Btn>
+        <Btn title="删除线" active={is('strike')} onClick={() => run(ed => ed.commands.toggleStrike())}>
+          <span style={{textDecoration:'line-through', fontSize:13}}>S</span>
+        </Btn>
+        <Btn title="上标" active={is('superscript')} onClick={() => run(ed => ed.chain().unsetSubscript?.().toggleSuperscript?.().run?.())}>
+          <span style={{fontSize:11, lineHeight:1}}>x<sup style={{fontSize:8}}>2</sup></span>
+        </Btn>
+        <Btn title="下标" active={is('subscript')} onClick={() => run(ed => ed.chain().unsetSuperscript?.().toggleSubscript?.().run?.())}>
+          <span style={{fontSize:11, lineHeight:1}}>x<sub style={{fontSize:8}}>2</sub></span>
+        </Btn>
+        <Btn title="行内代码 Ctrl+E" active={is('code')} onClick={() => run(ed => ed.commands.toggleCode())}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </Btn>
 
-        {/* 颜色/底色 */}
-        <ColorPicker label="颜色" onSelect={color=>{ const ed=getEditor();if(!ed)return; if(color==='transparent')ed.chain().focus().unsetColor?.().run(); else ed.chain().focus().setColor?.(color).run(); }} />
-        <ColorPicker label="底色" onSelect={color=>{ const ed=getEditor();if(!ed)return; if(color==='transparent')ed.chain().focus().unsetHighlight().run(); else ed.chain().focus().toggleHighlight({color}).run(); }} />
+        {/* 高亮 */}
+        <Btn title="高亮" active={is('highlight')} onClick={() => run(ed => ed.commands.toggleHighlight())}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M15.232 5.232l3.536 3.536-6.768 6.768-4.95.707.707-4.95 6.475-6.061zm1.414-1.414a2 2 0 0 1 2.828 2.828L5.293 20.78l-5.657.707.707-5.657L16.646 3.818z"/></svg>
+        </Btn>
 
-        <Btn title="清除格式" onClick={()=>cmd(c=>c.unsetAllMarks().clearNodes().run())}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        {/* 字体颜色 */}
+        <ColorDropdown label="字体颜色"
+          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 3h6l4 10H5L9 3z"/><rect x="3" y="18" width="18" height="3" rx="1" fill="currentColor" stroke="none"/></svg>}
+          onSelect={color => run(ed => {
+            if (!color) ed.commands.unsetColor?.();
+            else ed.chain().setColor?.(color).run?.();
+          })}
+        />
+
+        {/* 背景色 */}
+        <ColorDropdown label="背景高亮"
+          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
+          onSelect={color => run(ed => {
+            if (!color) ed.commands.unsetHighlight();
+            else ed.chain().toggleHighlight({color}).run?.();
+          })}
+        />
+
+        {/* 清除格式 */}
+        <Btn title="清除格式" onClick={() => run(ed => { ed.commands.unsetAllMarks(); ed.commands.clearNodes(); })}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M20 20H7L3 16l10-10 7 7-2.5 2.5"/><line x1="2" y1="2" x2="22" y2="22" strokeWidth="1.5"/>
+          </svg>
         </Btn>
 
         <Sep />
 
         {/* 对齐 */}
-        <Btn title="左对齐" active={e?.isActive({textAlign:'left'})??false} onClick={()=>cmd(c=>c.setTextAlign('left').run())}><AlignIcon a="left"/></Btn>
-        <Btn title="居中" active={e?.isActive({textAlign:'center'})??false} onClick={()=>cmd(c=>c.setTextAlign('center').run())}><AlignIcon a="center"/></Btn>
-        <Btn title="右对齐" active={e?.isActive({textAlign:'right'})??false} onClick={()=>cmd(c=>c.setTextAlign('right').run())}><AlignIcon a="right"/></Btn>
-        <Btn title="两端对齐" active={e?.isActive({textAlign:'justify'})??false} onClick={()=>cmd(c=>c.setTextAlign('justify').run())}><AlignIcon a="justify"/></Btn>
+        {(['left','center','right','justify'] as const).map(align => {
+          const paths: Record<string, string[]> = {
+            left:['M3 6h18','M3 12h12','M3 18h15'],
+            center:['M3 6h18','M6 12h12','M4 18h16'],
+            right:['M3 6h18','M9 12h12','M6 18h15'],
+            justify:['M3 6h18','M3 12h18','M3 18h18'],
+          };
+          const titles: Record<string,string> = { left:'左对齐', center:'居中', right:'右对齐', justify:'两端对齐' };
+          return (
+            <Btn key={align} title={titles[align]}
+              active={e?.isActive({textAlign:align}) ?? false}
+              onClick={() => run(ed => ed.commands.setTextAlign(align))}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {paths[align].map((d,i) => <path key={i} d={d}/>)}
+              </svg>
+            </Btn>
+          );
+        })}
 
         {/* 行间距 */}
-        <Dropdown width={140} trigger={
-          <button title="行间距" style={{ width:28,height:28,borderRadius:6,border:'none',background:'transparent',color:'var(--text-secondary)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}
-            onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--bg-surface3)';}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background='transparent';}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><polyline points="7 3 4 6 7 9"/><polyline points="7 21 4 18 7 15"/></svg>
-          </button>
-        }>
-          {LINE_SPACINGS.map(s=><DropItem key={s.value} active={lineSpacing===s.value} onClick={()=>applyLineSpacing(s.value)}>{s.label}</DropItem>)}
-        </Dropdown>
+        <ToolDropdown label={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><polyline points="7 3 4 6 7 9"/><polyline points="7 21 4 18 7 15"/></svg>} minWidth={160} active={lineSpacing !== '1.8'}>
+          {LINE_SPACINGS.map(s => (
+            <DItem key={s.value} active={lineSpacing===s.value} onClick={() => applyLineSpacing(s.value)}>{s.label}</DItem>
+          ))}
+        </ToolDropdown>
 
         <Sep />
 
         {/* 列表 */}
-        <Btn title="无序列表" active={is('bulletList')} onClick={()=>cmd(c=>c.toggleBulletList().run())}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+        <Btn title="无序列表" active={is('bulletList')} onClick={() => run(ed => ed.commands.toggleBulletList())}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.2" fill="currentColor"/><circle cx="4" cy="12" r="1.2" fill="currentColor"/><circle cx="4" cy="18" r="1.2" fill="currentColor"/></svg>
         </Btn>
-        <Btn title="有序列表" active={is('orderedList')} onClick={()=>cmd(c=>c.toggleOrderedList().run())}>
+        <Btn title="有序列表" active={is('orderedList')} onClick={() => run(ed => ed.commands.toggleOrderedList())}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
         </Btn>
-        <Btn title="待办列表" active={is('taskList')} onClick={()=>cmd(c=>c.toggleTaskList().run())}>
+        <Btn title="待办列表" active={is('taskList')} onClick={() => run(ed => ed.commands.toggleTaskList())}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </Btn>
-        <Btn title="减少缩进" onClick={()=>cmd(c=>c.liftListItem?.('listItem')??c)}>
+        <Btn title="减少缩进" onClick={() => run(ed => ed.commands.liftListItem?.('listItem'))}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="13 10 9 12 13 14"/></svg>
         </Btn>
-        <Btn title="增加缩进" onClick={()=>cmd(c=>c.sinkListItem?.('listItem')??c)}>
+        <Btn title="增加缩进" onClick={() => run(ed => ed.commands.sinkListItem?.('listItem'))}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="9 10 13 12 9 14"/></svg>
         </Btn>
 
         <Sep />
 
         {/* 块 */}
-        <Btn title="引用" active={is('blockquote')} onClick={()=>cmd(c=>c.toggleBlockquote().run())}>
+        <Btn title="引用块" active={is('blockquote')} onClick={() => run(ed => ed.commands.toggleBlockquote())}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
         </Btn>
-        <Btn title="代码块" active={is('codeBlock')} onClick={()=>cmd(c=>c.toggleCodeBlock().run())}>
+        <Btn title="代码块" active={is('codeBlock')} onClick={() => run(ed => ed.commands.toggleCodeBlock())}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 7 12 9 15"/><polyline points="15 9 17 12 15 15"/></svg>
         </Btn>
 
         <Sep />
 
         {/* 插入 */}
-        <Dropdown width={180} trigger={
-          <button style={{ height:26,padding:'0 8px',borderRadius:6,fontSize:12,background:'var(--bg-surface3)',border:'0.5px solid var(--border)',color:'var(--text-secondary)',cursor:'pointer',fontFamily:'inherit',flexShrink:0,display:'flex',alignItems:'center',gap:5 }}
-            onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='rgba(200,169,110,0.3)';}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--border)';}}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            插入
-            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        }>
-          <DropItem onClick={()=>setDialog('link')} shortcut="Ctrl+K">🔗  链接</DropItem>
-          <DropItem onClick={()=>setDialog('image')}>🖼  图片</DropItem>
-          <DropItem onClick={()=>setDialog('video')}>🎬  嵌入视频</DropItem>
-          <DropItem onClick={()=>setDialog('table')}>📊  表格</DropItem>
-          <DropSep />
-          <DropItem onClick={()=>cmd(c=>c.setHorizontalRule().run())}>─  分割线</DropItem>
-          <DropItem onClick={()=>{ const now=new Date().toLocaleString('zh-CN'); cmd(c=>c.insertContent(now).run()); }}>🕐  插入时间</DropItem>
-        </Dropdown>
+        <ToolDropdown label="插入" minWidth={180}>
+          <DItem onClick={() => setDialog('link')} shortcut="Ctrl+K">🔗 链接</DItem>
+          <DItem onClick={() => setDialog('image')}>🖼 图片</DItem>
+          <DItem onClick={() => setDialog('video')}>🎬 嵌入视频</DItem>
+          <DItem onClick={() => setDialog('table')}>📊 表格</DItem>
+          <DSep />
+          <DItem onClick={() => run(ed => ed.commands.setHorizontalRule())}>─ 分割线</DItem>
+          <DItem onClick={() => run(ed => ed.commands.insertContent(new Date().toLocaleString('zh-CN')))}>🕐 当前时间</DItem>
+        </ToolDropdown>
 
-        {/* 表格操作（激活时显示） */}
+        {/* 表格内操作（仅当光标在表格内时显示） */}
         {is('table') && (
-          <Dropdown width={170} trigger={
-            <button style={{ height:26,padding:'0 8px',borderRadius:6,fontSize:12,background:'rgba(200,169,110,0.1)',border:'0.5px solid rgba(200,169,110,0.3)',color:'var(--accent)',cursor:'pointer',fontFamily:'inherit',flexShrink:0,display:'flex',alignItems:'center',gap:5 }}>
-              📊 表格 <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          }>
-            <DropItem onClick={()=>cmd(c=>c.addRowBefore().run())}>↑ 上方插入行</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.addRowAfter().run())}>↓ 下方插入行</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.addColumnBefore().run())}>← 左侧插入列</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.addColumnAfter().run())}>→ 右侧插入列</DropItem>
-            <DropSep />
-            <DropItem onClick={()=>cmd(c=>c.mergeCells?.().run())}>⊞ 合并单元格</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.splitCell?.().run())}>⊟ 拆分单元格</DropItem>
-            <DropSep />
-            <DropItem onClick={()=>cmd(c=>c.deleteRow().run())} danger>删除当前行</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.deleteColumn().run())} danger>删除当前列</DropItem>
-            <DropItem onClick={()=>cmd(c=>c.deleteTable().run())} danger>删除表格</DropItem>
-          </Dropdown>
+          <>
+            <Sep />
+            <ToolDropdown label="表格" minWidth={170} active>
+              <DItem onClick={() => run(ed => ed.commands.addRowBefore())}>↑ 上方插入行</DItem>
+              <DItem onClick={() => run(ed => ed.commands.addRowAfter())}>↓ 下方插入行</DItem>
+              <DItem onClick={() => run(ed => ed.commands.addColumnBefore())}>← 左侧插入列</DItem>
+              <DItem onClick={() => run(ed => ed.commands.addColumnAfter())}>→ 右侧插入列</DItem>
+              <DSep />
+              <DItem onClick={() => run(ed => ed.commands.mergeCells?.())}>⊞ 合并单元格</DItem>
+              <DItem onClick={() => run(ed => ed.commands.splitCell?.())}>⊟ 拆分单元格</DItem>
+              <DSep />
+              <DItem onClick={() => run(ed => ed.commands.deleteRow())} danger>删除行</DItem>
+              <DItem onClick={() => run(ed => ed.commands.deleteColumn())} danger>删除列</DItem>
+              <DItem onClick={() => run(ed => ed.commands.deleteTable())} danger>删除表格</DItem>
+            </ToolDropdown>
+          </>
         )}
 
         {/* 更多 */}
-        <Dropdown width={200} trigger={
-          <button title="更多操作" style={{ width:28,height:28,borderRadius:6,border:'none',background:'transparent',color:'var(--text-secondary)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}
-            onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background='var(--bg-surface3)';}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background='transparent';}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-          </button>
-        }>
-          <DropItem onClick={()=>dispatch(setFindOpen(true))} shortcut="Ctrl+F">🔍  查找与替换</DropItem>
-          <DropSep />
-          <DropItem onClick={handleCopyMarkdown}>⬇  复制为 Markdown</DropItem>
-          <DropItem onClick={()=>{ const ed=getEditor(); if(ed) navigator.clipboard.writeText(ed.getText()); }}>📋  复制为纯文本</DropItem>
-          <DropSep />
-          <DropItem onClick={handlePrint} shortcut="Ctrl+P">🖨  打印 / 导出 PDF</DropItem>
-          <DropSep />
-          <DropItem onClick={()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen().catch(()=>{}); }} shortcut="F11">⛶  全屏模式</DropItem>
-        </Dropdown>
+        <ToolDropdown label={<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>} minWidth={200}>
+          <DItem onClick={() => dispatch(setFindOpen(true))} shortcut="Ctrl+F">🔍 查找与替换</DItem>
+          <DSep />
+          <DItem onClick={() => { const ed=getEditor(); if(!ed) return; const md=ed.getHTML().replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi,(_:any,l:any,t:any)=>'#'.repeat(Number(l))+' '+t+'\n').replace(/<strong[^>]*>(.*?)<\/strong>/gi,'**$1**').replace(/<em[^>]*>(.*?)<\/em>/gi,'*$1*').replace(/<code[^>]*>(.*?)<\/code>/gi,'`$1`').replace(/<a href="([^"]*)"[^>]*>(.*?)<\/a>/gi,'[$2]($1)').replace(/<br\s*\/?>/gi,'\n').replace(/<p[^>]*>(.*?)<\/p>/gi,'$1\n\n').replace(/<[^>]+>/g,'').trim(); navigator.clipboard.writeText(md); }}>⬇ 复制为 Markdown</DItem>
+          <DItem onClick={() => { const ed=getEditor(); if(ed) navigator.clipboard.writeText(ed.getText()); }}>📋 复制为纯文本</DItem>
+          <DSep />
+          <DItem onClick={handlePrint} shortcut="Ctrl+P">🖨 打印 / 导出 PDF</DItem>
+          <DSep />
+          <DItem onClick={() => { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen().catch(()=>{}); }} shortcut="F11">⛶ 全屏模式</DItem>
+        </ToolDropdown>
 
-        <div style={{ flex:1 }} />
+        <div style={{ flex:1, minWidth:8 }} />
 
-        {/* 右侧面板图标 */}
-        {(['outline','stats','plugins','ai'] as const).map(tab=>{
-          const icons: Record<string,React.ReactNode> = {
-            outline: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" strokeWidth="3"/><line x1="3" y1="12" x2="3.01" y2="12" strokeWidth="3"/><line x1="3" y1="18" x2="3.01" y2="18" strokeWidth="3"/></svg>,
-            stats: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-            plugins: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/></svg>,
-            ai: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+        {/* 右侧面板 tabs — 4个按钮对应4个 tab */}
+        {(['outline','stats','plugins','ai'] as const).map(tab => {
+          const cfg: Record<string, {title:string; icon:React.ReactNode}> = {
+            outline: { title:'大纲', icon:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" strokeWidth="3"/><line x1="3" y1="12" x2="3.01" y2="12" strokeWidth="3"/><line x1="3" y1="18" x2="3.01" y2="18" strokeWidth="3"/></svg> },
+            stats:   { title:'统计', icon:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+            plugins: { title:'插件', icon:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/></svg> },
+            ai:      { title:'AI', icon:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> },
           };
-          const labels: Record<string,string> = { outline:'大纲', stats:'统计', plugins:'插件', ai:'AI' };
+          const isActive = rightPanelOpen && rightPanelTab === tab;
           return (
-            <Btn key={tab} title={labels[tab]} active={rightPanelOpen&&rightPanelTab===tab}
-              onClick={()=>{ if(rightPanelOpen&&rightPanelTab===tab) dispatch(toggleRightPanel()); else dispatch(setRightPanelTab(tab)); }}>
-              {icons[tab]}
+            <Btn key={tab} title={cfg[tab].title} active={isActive} onClick={() => handlePanelBtn(tab)}>
+              {cfg[tab].icon}
             </Btn>
           );
         })}
@@ -414,18 +573,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
         <Sep />
 
         {/* 视图切换 */}
-        <div style={{ display:'flex',background:'var(--bg-surface3)',borderRadius:8,padding:3,gap:2,flexShrink:0 }}>
-          {([{k:'edit',l:'编辑',i:'✎'},{k:'preview',l:'预览',i:'◉'},{k:'focus',l:'专注',i:'⊙'}] as const).map(m=>(
-            <button key={m.k} onClick={()=>onModeChange(m.k)} title={m.l} style={{ padding:'3px 9px',borderRadius:5,fontSize:11.5,border:'none',cursor:'pointer',background:mode===m.k?'var(--bg-surface)':'transparent',color:mode===m.k?'var(--text-primary)':'var(--text-tertiary)',transition:'all 0.15s',fontFamily:'inherit',boxShadow:mode===m.k?'0 1px 3px rgba(0,0,0,0.3)':'none',display:'flex',alignItems:'center',gap:4 }}>
-              <span>{m.i}</span><span>{m.l}</span>
-            </button>
+        <div style={{ display:'flex', background:'var(--bg-surface3)', borderRadius:8, padding:3, gap:2, flexShrink:0 }}>
+          {([{k:'edit',l:'编辑'},{k:'preview',l:'预览'},{k:'focus',l:'专注'}] as const).map(m => (
+            <button key={m.k} onClick={() => onModeChange(m.k)} title={m.l} style={{
+              padding:'3px 10px', borderRadius:6, fontSize:12, border:'none', cursor:'pointer',
+              background:mode===m.k?'var(--bg-surface)':'transparent',
+              color:mode===m.k?'var(--text-primary)':'var(--text-tertiary)',
+              transition:'all 0.15s', fontFamily:'inherit',
+              boxShadow:mode===m.k?'0 1px 4px rgba(0,0,0,0.3)':'none',
+            }}>{m.l}</button>
           ))}
         </div>
 
         {/* 保存状态 */}
-        <div style={{ display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:20,marginLeft:6,flexShrink:0,background:isSaving?'rgba(74,158,255,0.08)':'rgba(82,201,122,0.06)',border:`0.5px solid ${isSaving?'rgba(74,158,255,0.2)':'rgba(82,201,122,0.15)'}`,fontSize:11.5,color:isSaving?'#7ab8e8':'rgba(82,201,122,0.7)' }}>
+        <div style={{
+          display:'flex', alignItems:'center', gap:5, padding:'4px 10px',
+          borderRadius:20, marginLeft:6, flexShrink:0,
+          background:isSaving?'rgba(74,158,255,0.08)':'rgba(82,201,122,0.06)',
+          border:`0.5px solid ${isSaving?'rgba(74,158,255,0.2)':'rgba(82,201,122,0.15)'}`,
+          fontSize:11.5, color:isSaving?'#7ab8e8':'rgba(82,201,122,0.8)',
+        }}>
           {isSaving
-            ? <div style={{ width:5,height:5,borderRadius:'50%',background:'#7ab8e8',animation:'pulse 1s infinite' }} />
+            ? <div style={{ width:5,height:5,borderRadius:'50%',background:'#7ab8e8',animation:'pulse 1s infinite' }}/>
             : <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           }
           {isSaving?'保存中':'已保存'}
