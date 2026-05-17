@@ -12,23 +12,28 @@ import pluginsReducer from './slices/pluginsSlice';
 import aiReducer from './slices/aiSlice';
 import authReducer from './slices/authSlice';
 
-// app只持久化侧边栏开关和活跃工作区，tabs/activeView每次重置
 const appPersistConfig = {
   key: 'qiwen-app',
   storage,
   whitelist: ['sidebarOpen', 'activeWorkspaceId'],
 };
 
+// ── plugins 持久化，安装/启用状态跨会话保留 ──────────────
+const pluginsPersistConfig = {
+  key: 'qiwen-plugins',
+  storage,
+};
+
 const rootReducer = combineReducers({
-  app: persistReducer(appPersistConfig, appReducer),
-  documents: documentsReducer,
+  app:        persistReducer(appPersistConfig, appReducer),
+  documents:  documentsReducer,
   workspaces: workspacesReducer,
-  editor: editorReducer,
-  settings: persistReducer({ key: 'qiwen-settings', storage }, settingsReducer),
+  editor:     editorReducer,
+  settings:   persistReducer({ key: 'qiwen-settings', storage }, settingsReducer),
   references: referencesReducer,
-  plugins: pluginsReducer,
-  ai: aiReducer,
-  auth: authReducer,
+  plugins:    persistReducer(pluginsPersistConfig, pluginsReducer),
+  ai:         aiReducer,
+  auth:       authReducer,
 });
 
 export const store = configureStore({
