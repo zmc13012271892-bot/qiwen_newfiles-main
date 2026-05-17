@@ -503,3 +503,25 @@ body {
   outline: 2px solid rgba(200,169,110,0.4);
   border-radius: 4px;
 }
+
+/* ── 预览模式 HTML 渲染样式 ────────────────────────────── */
+.preview-content h1 { font-family: var(--font-serif); font-size: 2em; font-weight: 300; margin: 0 0 0.6em; color: var(--text-primary); }
+.preview-content h2 { font-family: var(--font-serif); font-size: 1.5em; font-weight: 400; margin: 1.4em 0 0.5em; color: var(--text-primary); }
+.preview-content h3 { font-size: 1.2em; font-weight: 500; margin: 1.2em 0 0.4em; color: var(--text-primary); }
+.preview-content p { margin: 0 0 1em; color: var(--text-secondary); }
+.preview-content strong { color: var(--text-primary); }
+.preview-content em { font-style: italic; }
+.preview-content code { background: var(--bg-surface3); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.9em; }
+.preview-content pre { background: var(--bg-surface2); border: 0.5px solid var(--border); border-radius: 10px; padding: 16px; overflow-x: auto; margin: 1em 0; }
+.preview-content pre code { background: none; padding: 0; color: var(--text-secondary); }
+.preview-content blockquote { border-left: 3px solid var(--accent); padding: 8px 16px; margin: 1em 0; background: rgba(200,169,110,0.06); border-radius: 0 8px 8px 0; color: var(--text-secondary); }
+.preview-content ul, .preview-content ol { padding-left: 1.5em; margin: 0.5em 0 1em; }
+.preview-content li { margin-bottom: 4px; color: var(--text-secondary); }
+.preview-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.preview-content th, .preview-content td { border: 0.5px solid var(--border); padding: 8px 12px; text-align: left; font-size: 14px; }
+.preview-content th { background: var(--bg-surface2); color: var(--text-primary); font-weight: 500; }
+.preview-content a { color: var(--accent); text-decoration: underline; }
+.preview-content img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+.preview-content hr { border: none; border-top: 0.5px solid var(--border); margin: 2em 0; }
+.preview-content iframe { border-radius: 8px; max-width: 100%; }
+.preview-content mark { background: rgba(200,169,110,0.25); color: var(--text-primary); padding: 1px 2px; border-radius: 3px; }
