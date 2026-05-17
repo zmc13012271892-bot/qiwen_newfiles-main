@@ -19,7 +19,6 @@ import { OnboardingPage } from './components/onboarding/OnboardingPage';
 import { TitleBar } from './components/common/TitleBar';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { EditorArea } from './components/editor/EditorArea';
-import { RightPanel } from './components/sidebar/RightPanel';
 import { StatusBar } from './components/common/StatusBar';
 import { Notification } from './components/common/Notification';
 import { SearchModal } from './components/modals/SearchModal';
@@ -29,6 +28,25 @@ import { SettingsView } from './components/settings/SettingsView';
 import { PluginsView } from './plugins/PluginsView';
 
 type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
+
+// ── 检查 onboardingDone 的统一函数 ───────────────────────
+// 同时检查 ipc settings 和 localStorage，任意一个为 true 即认为已完成
+async function checkOnboardingDone(): Promise<boolean> {
+  try {
+    const d = await ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' });
+    if (d === true) return true;
+  } catch {}
+  try {
+    if (localStorage.getItem('qiwen_onboarding_done') === '1') return true;
+  } catch {}
+  return false;
+}
+
+// ── 标记 onboardingDone 的统一函数 ──────────────────────
+async function markOnboardingDone(): Promise<void> {
+  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
+  try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
+}
 
 // ── 文档库视图 ────────────────────────────────────────────
 const LibraryView: React.FC = () => {
@@ -69,7 +87,6 @@ const LibraryView: React.FC = () => {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', overflow: 'hidden' }}>
-      {/* Header */}
       <div style={{ padding: '24px 32px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>文档库</div>
@@ -84,7 +101,6 @@ const LibraryView: React.FC = () => {
           新建文档
         </button>
       </div>
-      {/* Search */}
       <div style={{ padding: '16px 32px 0' }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
@@ -96,7 +112,6 @@ const LibraryView: React.FC = () => {
           }}
         />
       </div>
-      {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 32px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', marginTop: 60 }}>加载中...</div>
@@ -146,17 +161,16 @@ const LibraryView: React.FC = () => {
 const ReferencesView: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const activeWorkspaceId = useSelector((s: RootState) => s.app.activeWorkspaceId);
-  const { items: refs, loading } = useSelector((s: RootState) => s.references);
+  const { items: refs } = useSelector((s: RootState) => s.references);
   const [search, setSearch] = React.useState('');
   const [showAdd, setShowAdd] = React.useState(false);
   const [form, setForm] = React.useState({ title: '', authors: '', year: '', journal: '', doi: '', abstract: '' });
-
   const [refsLoading, setRefsLoading] = React.useState(false);
+
   React.useEffect(() => {
     if (activeWorkspaceId) {
       setRefsLoading(true);
-      dispatch(fetchReferences({ workspaceId: activeWorkspaceId }))
-        .finally(() => setRefsLoading(false));
+      dispatch(fetchReferences({ workspaceId: activeWorkspaceId })).finally(() => setRefsLoading(false));
     }
   }, [activeWorkspaceId, dispatch]);
 
@@ -206,7 +220,6 @@ const ReferencesView: React.FC = () => {
           添加文献
         </button>
       </div>
-      {/* Add form */}
       {showAdd && (
         <div style={{ margin: '16px 32px 0', padding: 20, background: 'var(--bg-surface)', border: '0.5px solid var(--border)', borderRadius: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>添加文献</div>
@@ -225,7 +238,6 @@ const ReferencesView: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Search */}
       <div style={{ padding: '16px 32px 0' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索文献..." style={{
           width: '100%', padding: '9px 14px', background: 'var(--bg-surface2)',
@@ -233,7 +245,6 @@ const ReferencesView: React.FC = () => {
           fontSize: 13.5, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
         }} />
       </div>
-      {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 32px' }}>
         {refsLoading ? (
           <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', marginTop: 60 }}>加载中...</div>
@@ -246,10 +257,7 @@ const ReferencesView: React.FC = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {filtered.map(ref => (
-              <div key={ref.id} style={{
-                padding: '16px 20px', background: 'var(--bg-surface)',
-                border: '0.5px solid var(--border)', borderRadius: 12,
-              }}>
+              <div key={ref.id} style={{ padding: '16px 20px', background: 'var(--bg-surface)', border: '0.5px solid var(--border)', borderRadius: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.4 }}>{ref.title}</div>
@@ -325,7 +333,6 @@ const UserAccountBar: React.FC = () => {
       borderTop: sidebarOpen ? '0.5px solid var(--border)' : 'none',
     }}>
       <div style={{ width: 220, padding: '8px 8px', position: 'relative', overflow: 'visible' }}>
-        {/* 弹出菜单 */}
         {menuOpen && (
           <>
             <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
@@ -343,23 +350,7 @@ const UserAccountBar: React.FC = () => {
                     <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 2 }}>{isLocalMode ? '🔒 本地账号 · 数据仅存于此设备' : user?.email}</div>
                   </div>
                 </div>
-                {isLocalMode && (
-                  <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(200,169,110,0.08)', borderRadius: 8, border: '0.5px solid rgba(200,169,110,0.2)', fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                    💡 注册后可云端同步，数据不会丢失。
-                  </div>
-                )}
               </div>
-              {isLocalMode && (
-                <button onClick={() => { setMenuOpen(false); dispatch(setView('settings')); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
-                  onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}>
-                  <span>✨</span>
-                  <div>
-                    <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>用此账号注册</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 1 }}>升级为云端账号，跨设备同步</div>
-                  </div>
-                </button>
-              )}
               <button onClick={() => { setMenuOpen(false); dispatch(setView('settings')); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                 onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}>
@@ -369,7 +360,6 @@ const UserAccountBar: React.FC = () => {
             </div>
           </>
         )}
-        {/* 账号按钮 */}
         <button onClick={() => setMenuOpen(v => !v)} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
@@ -399,40 +389,42 @@ const AppInner: React.FC = () => {
   const { isAuthenticated, isLocalMode } = useSelector((s: RootState) => (s as any).auth);
   const { sidebarOpen, notification } = useSelector((s: RootState) => s.app);
   const [stage, setStage] = useState<AppStage>('splash');
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
-  // After splash → 正确流程
+  // ── Splash 结束后的主流程 ─────────────────────────────
+  // 关键：只检查一次 onboardingDone，不依赖多个异步竞态
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
-    // 多源读onboardingDone
-    let isOnboarded = false;
-    try { const d = await ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' }); if (d) isOnboarded = true; } catch {}
-    try { if (localStorage.getItem('qiwen_onboarding_done') === '1') isOnboarded = true; } catch {}
-    setOnboardingDone(isOnboarded);
-
-    // 先尝试刷新token（已登录用户）
+    // 1. 先尝试刷新 token（已登录云端用户）
+    let authed = false;
     try {
       await dispatch(refreshAccessToken()).unwrap();
-      setStage(isOnboarded ? 'app' : 'onboarding');
-      return;
-    } catch {
-      // token刷新失败
+      authed = true;
+    } catch {}
+
+    // 2. 检查本地账号
+    if (!authed) {
+      try {
+        const localProfile = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
+        if (localProfile?.id) {
+          dispatch(setLocalMode(localProfile));
+          authed = true;
+        }
+      } catch {}
     }
 
-    // 检查本地账号
-    const localProfile = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
-    if (localProfile?.id) {
-      dispatch(setLocalMode(localProfile));
-      // 有本地账号 → 根据onboarding状态决定
-      setStage(isOnboarded ? 'app' : 'onboarding');
+    // 3. 没有任何账号 → 去登录页
+    if (!authed) {
+      setStage('auth');
       return;
     }
 
-    // 什么都没有 → 去登录页
-    setStage('auth');
+    // 4. 有账号 → 检查是否完成引导
+    const done = await checkOnboardingDone();
+    setStage(done ? 'app' : 'onboarding');
   }, [dispatch]);
 
+  // 登录/本地模式后加载数据
   useEffect(() => {
     if (isAuthenticated || isLocalMode) {
       dispatch(loadSettings());
@@ -447,12 +439,13 @@ const AppInner: React.FC = () => {
     }
   }, [isAuthenticated, isLocalMode, stage]);
 
-  // Auth success → 保存本地账号 + 检查onboarding
+  // Auth 页登录成功 → 检查 onboarding
   useEffect(() => {
     if ((isAuthenticated || isLocalMode) && stage === 'auth') {
-      // 如果是本地模式，持久化账号信息
+      // 持久化本地账号
       if (isLocalMode) {
-        const authUser = (window as any).__store?.getState?.()?.auth?.user;
+        const authState = store.getState().auth as any;
+        const authUser = authState?.user;
         if (authUser?.id?.startsWith('local_')) {
           ipc.invoke('settings:get', { key: 'localProfile' }).then((saved: any) => {
             if (!saved) {
@@ -463,17 +456,16 @@ const AppInner: React.FC = () => {
                 avatarColor: authUser.avatar,
               }});
             }
-          });
+          }).catch(() => {});
         }
       }
-      ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' }).then(done => {
-        setOnboardingDone(!!done);
+      checkOnboardingDone().then(done => {
         setStage(done ? 'app' : 'onboarding');
       });
     }
   }, [isAuthenticated, isLocalMode, stage]);
 
-  // Apply theme CSS variables
+  // 主题 CSS 变量
   const theme = useSelector((s: RootState) => s.settings.theme);
   const accentColor = useSelector((s: RootState) => s.settings.accentColor);
   useEffect(() => {
@@ -507,14 +499,14 @@ const AppInner: React.FC = () => {
     }
   }, [theme, accentColor]);
 
-  // Token auto-refresh every 12 minutes
+  // Token 自动刷新
   useEffect(() => {
     if (!isAuthenticated || isLocalMode) return;
     const iv = setInterval(() => dispatch(refreshAccessToken()), 12 * 60 * 1000);
     return () => clearInterval(iv);
   }, [isAuthenticated, isLocalMode, dispatch]);
 
-  // Menu actions from Electron
+  // Electron 菜单
   useEffect(() => {
     const api = (window as any).electronAPI;
     if (!api) return;
@@ -538,18 +530,13 @@ const AppInner: React.FC = () => {
         {stage === 'auth' && (
           <motion.div
             key="auth"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
             style={{ flex: 1, height: '100vh' }}
           >
             <AuthPage onOffline={async () => {
               dispatch({ type: 'auth/setLocalMode' });
-              let done = false;
-              try { const d = await ipc.invoke('settings:get', { key: 'onboardingDone' }); if (d) done = true; } catch {}
-              try { if (localStorage.getItem('qiwen_onboarding_done') === '1') done = true; } catch {}
-              setOnboardingDone(done);
+              const done = await checkOnboardingDone();
               setStage(done ? 'app' : 'onboarding');
             }} />
           </motion.div>
@@ -558,16 +545,14 @@ const AppInner: React.FC = () => {
         {stage === 'onboarding' && (
           <motion.div
             key="onboarding"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
             style={{ flex: 1, height: '100vh' }}
           >
             <OnboardingPage onComplete={async () => {
-              try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
-              try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
-              setOnboardingDone(true);
+              // OnboardingPage.handleFinish 已写入 ipc settings
+              // 这里额外写 localStorage 确保双重保险
+              await markOnboardingDone();
               setStage('app');
             }} />
           </motion.div>
@@ -600,7 +585,6 @@ const AppInner: React.FC = () => {
               <MainContent />
             </div>
             <StatusBar />
-
             <Notification />
             <SearchModal />
           </motion.div>
