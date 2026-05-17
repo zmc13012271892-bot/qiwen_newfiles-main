@@ -1,4 +1,4 @@
-import { Plugin, ProfessionType } from '../shared/types';
+import { Plugin, ProfessionType } from '../../shared/types';
 
 // ── 所有内置插件定义 ──────────────────────────────────────
 // 插件全部打包在客户端，无需联网下载
