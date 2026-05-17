@@ -51,12 +51,17 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
         icon: PROFESSIONS.find(p => p.id === selectedProfession)?.icon || '📁',
       })).unwrap();
       dispatch(setActiveWorkspace(ws.id));
-      // ── 根据职业初始化插件 ──────────────────────────────
+      // ── 根据职业初始化插件 ────────────────────────────────
       const professionPlugins = getPluginsForProfession(selectedProfession);
       dispatch(setPlugins(professionPlugins));
-      // ────────────────────────────────────────────────────
-      await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme });
-      await ipc.invoke('settings:set', { key: 'onboardingDone', value: true });
+      // ── 写入完成标记（两路确保可靠）─────────────────────
+      try { await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme }); } catch {}
+      try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
+      // 无论 ipc 是否成功，都继续
+      onComplete();
+    } catch (err) {
+      console.error('Onboarding finish error:', err);
+      // 即使出错也尝试标记完成并进入 app
       onComplete();
     } finally {
       setLoading(false);
