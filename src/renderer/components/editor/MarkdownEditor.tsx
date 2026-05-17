@@ -127,7 +127,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
       dispatch(updateStats({ wordCount: cn + en, charCount: text.length }));
       dispatch(setDocumentContent({ id: documentId, content: html }));
       dispatch(markTabDirty({ id: documentId, dirty: true }));
-      autoSave.schedule(documentId, html);
+      autoSave.schedule(documentId, html, 1000);
       onContentChange?.(html);
     },
   });
@@ -163,12 +163,19 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
     lastHtml.current = doc.content;
   }, [doc?.content]); // eslint-disable-line
 
-  // 失焦保存
+  // 失焦保存 + 页面关闭前强制保存
   useEffect(() => {
     if (!editor) return;
+    // 编辑器失焦时立即保存（不等待 timer）
     const handleBlur = () => autoSave.flush(documentId);
     editor.on('blur', handleBlur);
-    return () => { editor.off('blur', handleBlur); };
+    // 页面/窗口关闭前同步保存（同步 XHR 或直接 flush）
+    const handleBeforeUnload = () => { autoSave.flush(documentId); };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      editor.off('blur', handleBlur);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [editor, documentId]);
 
   if (!editor) return null;
