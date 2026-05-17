@@ -33,13 +33,17 @@ type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
 // 同时检查 ipc settings 和 localStorage，任意一个为 true 即认为已完成
 async function checkOnboardingDone(): Promise<boolean> {
   try {
-    const d = await ipc.invoke<boolean>('settings:get', { key: 'onboardingDone' });
-    if (d === true) return true;
-  } catch {}
-  try {
-    if (localStorage.getItem('qiwen_onboarding_done') === '1') return true;
+    const d = await ipc.invoke<any>('settings:get', { key: 'onboardingDone' });
+    // ipc 返回 JSON.parse 后的值，true / "true" / 1 都视为已完成
+    if (d === true || d === 'true' || d === 1) return true;
   } catch {}
   return false;
+}
+
+// 清除引导状态（用于调试/重置）
+async function resetOnboardingDone(): Promise<void> {
+  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: false }); } catch {}
+  try { localStorage.removeItem('qiwen_onboarding_done'); } catch {}
 }
 
 // ── 标记 onboardingDone 的统一函数 ──────────────────────
@@ -441,11 +445,13 @@ const AppInner: React.FC = () => {
   }, [isAuthenticated, isLocalMode, dispatch]);
 
   // 退出登录 → 跳回登录页
+  // clearAuth 会把 isAuthenticated 设为 false，但 isLocalMode 保持 true
+  // 所以检查 isAuthenticated 即可（本地模式下 isAuthenticated 也是 true）
   useEffect(() => {
-    if (!isAuthenticated && !isLocalMode && stage === 'app') {
+    if (!isAuthenticated && stage === 'app') {
       setStage('auth');
     }
-  }, [isAuthenticated, isLocalMode, stage]);
+  }, [isAuthenticated, stage]);
 
   // Auth 页登录成功 → 检查 onboarding
   useEffect(() => {
