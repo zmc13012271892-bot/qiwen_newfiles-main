@@ -161,7 +161,7 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
       state.isAuthenticated = false;
-      state.isLocalMode = true;
+      state.isLocalMode = false;  // 真正退出，让 App.tsx 能检测到
       localStorage.removeItem('qiwen_last_user');
     },
   },
@@ -212,6 +212,7 @@ const authSlice = createSlice({
         state.user = null;
         state.accessToken = null;
         state.isAuthenticated = false;
+        state.isLocalMode = false;
       });
   },
 });
