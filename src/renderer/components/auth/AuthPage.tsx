@@ -68,7 +68,8 @@ export const AuthPage: React.FC<{ onOffline?: () => void }> = ({ onOffline }) =>
   };
 
   const handleOffline = () => {
-    dispatch(setLocalMode(undefined));
+    // 只调用父级回调，不在这里 dispatch
+    // 父级 App.tsx 的 onOffline 会处理 setLocalMode + 页面跳转
     onOffline?.();
   };
 
