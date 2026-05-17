@@ -76,6 +76,31 @@ function createWindow() {
     mainWindow.center();
     if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
+  // ── 关闭前等待 renderer 把未保存内容写入 DB ──────────────
+  let isReallyClosing = false;
+  mainWindow.on('close', (e) => {
+    if (isReallyClosing) return; // 已经完成保存，真正关闭
+    e.preventDefault(); // 先阻止关闭
+
+    // 通知 renderer flush 所有未保存内容，完成后再关闭
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-before-close');
+    }
+
+    // 给 renderer 最多 3 秒完成保存，超时强制关闭
+    const forceClose = setTimeout(() => {
+      isReallyClosing = true;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    }, 3000);
+
+    // renderer 完成保存后发送 'flush-complete'
+    ipcMain.once('flush-complete', () => {
+      clearTimeout(forceClose);
+      isReallyClosing = true;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    });
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
 
   setupMenu();

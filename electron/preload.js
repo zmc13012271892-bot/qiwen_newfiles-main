@@ -29,4 +29,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── 通用数据库 IPC（文档、工作区、设置等全走这里）──────
   invoke: (channel, payload) => ipcRenderer.invoke(channel, payload),
+
+  // ── 单向消息（用于 flush-complete 等信号）────────────────
+  send: (channel, ...args) => {
+    const allowed = ['flush-complete'];
+    if (allowed.includes(channel)) ipcRenderer.send(channel, ...args);
+  },
 });
