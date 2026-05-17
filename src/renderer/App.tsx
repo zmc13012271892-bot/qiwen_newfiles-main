@@ -418,14 +418,23 @@ const AppInner: React.FC = () => {
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
-    // 1. 先尝试刷新 token（已登录云端用户）
+    // ── 最终判断规则：数据库里有工作区 = 用过了；没有 = 新用户 ──
+    // 这比任何 localStorage/ipc flag 都可靠，不会被旧数据干扰
+    const needsOnboarding = async (): Promise<boolean> => {
+      try {
+        const workspaces = await ipc.invoke<any[]>('workspaces:list');
+        if (!Array.isArray(workspaces) || workspaces.length === 0) return true;
+      } catch {}
+      return false;
+    };
+
+    // 1. 尝试恢复会话（token 或本地账号）
     let authed = false;
     try {
       await dispatch(refreshAccessToken()).unwrap();
       authed = true;
     } catch {}
 
-    // 2. 检查本地账号
     if (!authed) {
       try {
         const localProfile = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
@@ -436,37 +445,48 @@ const AppInner: React.FC = () => {
       } catch {}
     }
 
-    // 3. 没有任何账号
+    // 没有会话 → 以本地模式运行
     if (!authed) {
-      const done = await checkOnboardingDoneAsync();
-      if (done) {
-        // 做过引导但会话丢失（重装/清缓存等）→ 直接以本地模式进入 app，不强制登录
-        dispatch(setLocalMode(undefined));
-        setStage('app');
-      } else {
-        // 全新用户：直接跳引导页，无需登录
-        dispatch(setLocalMode(undefined));
-        setStage('onboarding');
-      }
-      return;
+      dispatch(setLocalMode(undefined));
     }
 
-    // 4. 有账号 → 检查是否完成引导
-    const done = await checkOnboardingDoneAsync();
-    setStage(done ? 'app' : 'onboarding');
+    // 2. 核心判断：数据库里有没有工作区
+    const isNew = await needsOnboarding();
+    if (isNew) {
+      // 没有工作区 = 全新用户或重置后，必须走引导页
+      setStage('onboarding');
+    } else {
+      // 有工作区 = 用过了，直接进入 app
+      setStage('app');
+    }
   }, [dispatch]);
 
-  // 配置 autoSave：绑定保存状态到 Redux + 全局 beforeunload 兜底
+  // 配置 autoSave + 关闭前保存
   useEffect(() => {
     autoSave.configure({
-      interval: 1000,
+      interval: 800,  // 800ms 自动保存
       onSave:  (id) => dispatch(setSaving({ id, saving: true })),
       onSaved: (id) => dispatch(setSaving({ id, saving: false })),
     });
-    // App 级别的兜底：窗口关闭前强制 flush 所有未保存内容
-    const handleBeforeUnload = () => { autoSave.flushAll(); };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    // 监听 Electron 主进程发来的关闭信号
+    // 在真正关闭之前，flush 所有未保存内容，然后通知 main 可以关闭了
+    const api = (window as any).electronAPI;
+    if (api?.onMenuAction) {
+      const handleBeforeClose = async () => {
+        try {
+          await autoSave.flushAll();
+        } catch {}
+        // 通知主进程保存完成，可以关闭了
+        try { api.invoke('flush-complete'); } catch {}
+        // 同时用 ipcRenderer 直接发（更可靠）
+        try { (window as any).ipcRenderer?.send('flush-complete'); } catch {}
+      };
+      api.onMenuAction('app-before-close', handleBeforeClose);
+      return () => {
+        try { api.removeMenuAction('app-before-close', handleBeforeClose); } catch {}
+      };
+    }
   }, [dispatch]);
 
   // 登录/本地模式后加载数据
@@ -486,13 +506,13 @@ const AppInner: React.FC = () => {
     }
   }, [isAuthenticated, stage]);
 
-  // Auth 页登录/注册成功 → 检查 onboarding
-  // onOffline 已经用 setTimeout 处理，不会触发这里
+  // Auth 页登录/注册成功 → 同样用工作区检查
   useEffect(() => {
     if (isAuthenticated && stage === 'auth') {
-      checkOnboardingDoneAsync().then(done => {
-        setStage(done ? 'app' : 'onboarding');
-      });
+      ipc.invoke<any[]>('workspaces:list').then(ws => {
+        const isNew = !Array.isArray(ws) || ws.length === 0;
+        setStage(isNew ? 'onboarding' : 'app');
+      }).catch(() => setStage('onboarding'));
     }
   }, [isAuthenticated, isLocalMode, stage]);
 
@@ -566,12 +586,15 @@ const AppInner: React.FC = () => {
             style={{ flex: 1, height: '100vh' }}
           >
             <AuthPage onOffline={async () => {
-              // 先 dispatch setLocalMode，让用户有本地身份
               dispatch(setLocalMode(undefined));
-              // 检查是否做过引导
-              const done = await checkOnboardingDoneAsync();
-              // 用 setTimeout 确保 Redux 状态更新后再切换 stage，避免竞态
-              setTimeout(() => setStage(done ? 'app' : 'onboarding'), 0);
+              // 统一用工作区检查，不依赖任何 flag
+              try {
+                const ws = await ipc.invoke<any[]>('workspaces:list');
+                const isNew = !Array.isArray(ws) || ws.length === 0;
+                setTimeout(() => setStage(isNew ? 'onboarding' : 'app'), 0);
+              } catch {
+                setTimeout(() => setStage('onboarding'), 0);
+              }
             }} />
           </motion.div>
         )}
