@@ -9,6 +9,7 @@ import { TabBar } from './TabBar';
 import { EditorToolbar } from './EditorToolbar';
 import { RightPanel } from '../sidebar/RightPanel';
 import { DocumentTitle } from './DocumentTitle';
+import { FindReplaceBar } from './FindReplaceBar';
 import { toggleFocusMode } from '../../store/slices/appSlice';
 
 export type EditorMode = 'edit' | 'preview' | 'focus';
@@ -75,23 +76,20 @@ export const EditorArea: React.FC = () => {
               >
                 {/* 预览模式 */}
                 {mode === 'preview' ? (
-                  <div style={{
-                    flex: 1, overflow: 'auto', padding: '48px 64px',
-                    maxWidth: 'calc(660px + 128px)', margin: '0 auto', width: '100%',
-                  }}>
-                    <h1 style={{ fontSize: '2em', fontWeight: 300, marginBottom: 32,
-                      fontFamily: 'var(--font-serif)', color: 'var(--text-primary)' }}>
+                  <div style={{ flex:1, overflow:'auto', padding:'48px 64px', maxWidth:'calc(660px + 128px)', margin:'0 auto', width:'100%' }}>
+                    <h1 style={{ fontSize:'2em', fontWeight:300, marginBottom:32, fontFamily:'var(--font-serif)', color:'var(--text-primary)' }}>
                       {activeDoc.title}
                     </h1>
-                    <div style={{
-                      color: 'var(--text-secondary)', lineHeight: 1.85, fontSize: 15,
-                      whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)',
-                    }}>
-                      {activeDoc.content || '（空文档）'}
-                    </div>
+                    <div
+                      className="preview-content"
+                      dangerouslySetInnerHTML={{ __html: activeDoc.content || '<p style="color:var(--text-tertiary)">（空文档）</p>' }}
+                      style={{ color:'var(--text-secondary)', lineHeight:1.85, fontSize:15, fontFamily:'var(--font-sans)' }}
+                    />
                   </div>
                 ) : (
                   <>
+                    {/* 查找替换浮层 */}
+                    <FindReplaceBar />
                     <div style={{
                       padding: '32px 64px 0',
                       maxWidth: 'calc(660px + 128px)',
