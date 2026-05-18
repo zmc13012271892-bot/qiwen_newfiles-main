@@ -423,9 +423,13 @@ const AppInner: React.FC = () => {
     const needsOnboarding = async (): Promise<boolean> => {
       try {
         const workspaces = await ipc.invoke<any[]>('workspaces:list');
-        if (!Array.isArray(workspaces) || workspaces.length === 0) return true;
-      } catch {}
-      return false;
+        // 有工作区 = 用过了，不需要引导
+        if (Array.isArray(workspaces) && workspaces.length > 0) return false;
+        return true;
+      } catch {
+        // ipc 调用失败时，保守处理：认为是新用户，显示引导页
+        return true;
+      }
     };
 
     // 1. 尝试恢复会话（token 或本地账号）
@@ -478,9 +482,8 @@ const AppInner: React.FC = () => {
           await autoSave.flushAll();
         } catch {}
         // 通知主进程保存完成，可以关闭了
-        try { api.invoke('flush-complete'); } catch {}
-        // 同时用 ipcRenderer 直接发（更可靠）
-        try { (window as any).ipcRenderer?.send('flush-complete'); } catch {}
+        // 用 api.send() 发送单向信号给主进程（preload 已暴露此方法）
+        try { api.send('flush-complete'); } catch {}
       };
       api.onMenuAction('app-before-close', handleBeforeClose);
       return () => {
