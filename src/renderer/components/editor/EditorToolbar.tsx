@@ -291,7 +291,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
             setDialog(null); if (!url) return;
             run(ed => {
               if (text) ed.commands.insertContent(`<a href="${url}">${text}</a>`);
-              else ed.chain().setLink({href:url}).run();
+              else ed.chain().focus().setLink({href:url}).run();
             });
           }}
           onCancel={() => setDialog(null)}
@@ -302,7 +302,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
           fields={[{key:'src',label:'图片地址 *',placeholder:'https://example.com/image.png'},{key:'alt',label:'替代文字（选填）',placeholder:'图片描述'},{key:'width',label:'宽度 px（选填）',placeholder:'500'}]}
           onConfirm={({src,alt,width}) => {
             setDialog(null); if (!src) return;
-            run(ed => ed.chain().setImage({src, alt:alt||'', ...(width?{width:parseInt(width)}:{})}).run());
+            run(ed => ed.chain().focus().setImage({src, alt:alt||'', ...(width?{width:parseInt(width)}:{})}).run());
           }}
           onCancel={() => setDialog(null)}
         />
@@ -312,7 +312,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
           fields={[{key:'rows',label:'行数',placeholder:'3'},{key:'cols',label:'列数',placeholder:'3'}]}
           onConfirm={({rows,cols}) => {
             setDialog(null);
-            run(ed => ed.chain().insertTable({rows:parseInt(rows)||3, cols:parseInt(cols)||3, withHeaderRow:true}).run());
+            run(ed => ed.chain().focus().insertTable({rows:parseInt(rows)||3, cols:parseInt(cols)||3, withHeaderRow:true}).run());
           }}
           onCancel={() => setDialog(null)}
         />
@@ -409,10 +409,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
         <Btn title="删除线" active={is('strike')} onClick={() => run(ed => ed.commands.toggleStrike())}>
           <span style={{textDecoration:'line-through', fontSize:13}}>S</span>
         </Btn>
-        <Btn title="上标" active={is('superscript')} onClick={() => run(ed => ed.chain().unsetSubscript?.().toggleSuperscript?.().run?.())}>
+        <Btn title="上标" active={is('superscript')} onClick={() => run(ed => { try { ed.chain().focus().unsetSubscript().toggleSuperscript().run(); } catch { ed.chain().focus().toggleSuperscript().run(); } })}>
           <span style={{fontSize:11, lineHeight:1}}>x<sup style={{fontSize:8}}>2</sup></span>
         </Btn>
-        <Btn title="下标" active={is('subscript')} onClick={() => run(ed => ed.chain().unsetSuperscript?.().toggleSubscript?.().run?.())}>
+        <Btn title="下标" active={is('subscript')} onClick={() => run(ed => { try { ed.chain().focus().unsetSuperscript().toggleSubscript().run(); } catch { ed.chain().focus().toggleSubscript().run(); } })}>
           <span style={{fontSize:11, lineHeight:1}}>x<sub style={{fontSize:8}}>2</sub></span>
         </Btn>
         <Btn title="行内代码 Ctrl+E" active={is('code')} onClick={() => run(ed => ed.commands.toggleCode())}>
@@ -428,8 +428,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
         <ColorDropdown label="字体颜色"
           icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 3h6l4 10H5L9 3z"/><rect x="3" y="18" width="18" height="3" rx="1" fill="currentColor" stroke="none"/></svg>}
           onSelect={color => run(ed => {
-            if (!color) ed.commands.unsetColor?.();
-            else ed.chain().setColor?.(color).run?.();
+            if (!color) ed.chain().focus().unsetColor().run();
+            else ed.chain().focus().setColor(color).run();
           })}
         />
 
@@ -437,8 +437,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
         <ColorDropdown label="背景高亮"
           icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
           onSelect={color => run(ed => {
-            if (!color) ed.commands.unsetHighlight();
-            else ed.chain().toggleHighlight({color}).run?.();
+            if (!color) ed.chain().focus().unsetHighlight().run();
+            else ed.chain().focus().toggleHighlight({ color }).run();
           })}
         />
 
