@@ -468,7 +468,7 @@ const AppInner: React.FC = () => {
   // 配置 autoSave + 关闭前保存
   useEffect(() => {
     autoSave.configure({
-      interval: 800,  // 800ms 自动保存
+      interval: 500,  // 500ms 自动保存，尽可能减少数据丢失
       onSave:  (id) => dispatch(setSaving({ id, saving: true })),
       onSaved: (id) => dispatch(setSaving({ id, saving: false })),
     });
