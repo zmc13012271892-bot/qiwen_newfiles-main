@@ -78,22 +78,29 @@ function createWindow() {
   });
   // ── 关闭前等待 renderer 把未保存内容写入 DB ──────────────
   let isReallyClosing = false;
-  mainWindow.on('close', (e) => {
-    if (isReallyClosing) return; // 已经完成保存，真正关闭
-    e.preventDefault(); // 先阻止关闭
+  let isWaitingForFlush = false;  // 防止重复注册 flush-complete 监听器
 
-    // 通知 renderer flush 所有未保存内容，完成后再关闭
+  mainWindow.on('close', (e) => {
+    if (isReallyClosing) return;
+    e.preventDefault();
+
+    // 避免重复触发（用户快速多次点关闭）
+    if (isWaitingForFlush) return;
+    isWaitingForFlush = true;
+
+    // 通知 renderer flush 所有未保存内容
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('app-before-close');
     }
 
-    // 给 renderer 最多 3 秒完成保存，超时强制关闭
+    // 超时兜底：3秒后强制关闭
     const forceClose = setTimeout(() => {
+      log.warn('Save timeout, force closing');
       isReallyClosing = true;
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     }, 3000);
 
-    // renderer 完成保存后发送 'flush-complete'
+    // renderer 保存完成后通知
     ipcMain.once('flush-complete', () => {
       clearTimeout(forceClose);
       isReallyClosing = true;
