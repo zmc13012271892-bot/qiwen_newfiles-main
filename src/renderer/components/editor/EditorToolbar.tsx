@@ -72,15 +72,22 @@ const ToolDropdown: React.FC<{
   label: React.ReactNode; children: React.ReactNode; minWidth?: number; active?: boolean;
 }> = ({ label, children, minWidth=160, active }) => {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
-  // 点外部关闭
+  const handleOpen = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen(o => !o);
+  };
+
   useEffect(() => {
     if (!open) return;
     const handle = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    // 用 setTimeout 避免触发它的点击事件立刻关掉自己
     const tid = setTimeout(() => document.addEventListener('mousedown', handle), 0);
     return () => { clearTimeout(tid); document.removeEventListener('mousedown', handle); };
   }, [open]);
@@ -88,26 +95,28 @@ const ToolDropdown: React.FC<{
   return (
     <div ref={ref} style={{ position:'relative', flexShrink:0 }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={handleOpen}
         style={{
-          height:30, padding:'0 8px', borderRadius:7, border: active ? '0.5px solid rgba(200,169,110,0.35)' : '0.5px solid var(--border)',
+          height:30, padding:'0 8px', borderRadius:7,
+          border: active ? '0.5px solid rgba(200,169,110,0.35)' : '0.5px solid var(--border)',
           background: open ? 'var(--bg-surface3)' : active ? 'rgba(200,169,110,0.1)' : 'var(--bg-surface3)',
           color: active ? '#c8a96e' : 'var(--text-secondary)', cursor:'pointer',
           display:'flex', alignItems:'center', gap:5, fontSize:12.5,
           fontFamily:'inherit', flexShrink:0, transition:'all 0.1s',
         }}
-        onMouseEnter={e => { if (!open) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,169,110,0.3)'; }}
-        onMouseLeave={e => { if (!open) (e.currentTarget as HTMLElement).style.borderColor = active ? 'rgba(200,169,110,0.35)' : 'var(--border)'; }}
       >
         {label}
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity:0.5, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+          style={{ opacity:0.5, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </button>
       {open && (
         <div style={{
-          position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:500,
+          position:'fixed', top: pos.top, left: pos.left, zIndex:9999,
           background:'var(--bg-surface2)', border:'0.5px solid var(--border-md)',
           borderRadius:11, padding:'4px 0', minWidth:minWidth,
-          boxShadow:'0 12px 40px rgba(0,0,0,0.5)',
+          boxShadow:'0 16px 48px rgba(0,0,0,0.6)',
         }}>
           <div onClick={() => setOpen(false)}>
             {children}
@@ -149,7 +158,16 @@ const ColorDropdown: React.FC<{
   onSelect: (color: string | null) => void;
 }> = ({ label, icon, onSelect }) => {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
+
+  const handleOpen = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen(o => !o);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -160,7 +178,7 @@ const ColorDropdown: React.FC<{
 
   return (
     <div ref={ref} style={{ position:'relative', flexShrink:0 }}>
-      <button onClick={() => setOpen(o => !o)} title={label} style={{
+      <button onClick={handleOpen} title={label} style={{
         width:30, height:30, borderRadius:7, border:'none', background:'transparent',
         color:'var(--text-secondary)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
         transition:'background 0.1s',
@@ -170,11 +188,11 @@ const ColorDropdown: React.FC<{
       >{icon}</button>
       {open && (
         <div style={{
-          position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:500,
+          position:'fixed', top: pos.top, left: pos.left, zIndex:9999,
           background:'var(--bg-surface2)', border:'0.5px solid var(--border-md)',
-          borderRadius:11, padding:12, boxShadow:'0 12px 40px rgba(0,0,0,0.5)', minWidth:188,
+          borderRadius:11, padding:12, boxShadow:'0 16px 48px rgba(0,0,0,0.6)', minWidth:188,
         }}>
-          <div style={{ fontSize:11, color:'var(--text-tertiary)', marginBottom:8, letterSpacing:'0.5px' }}>{label}</div>
+          <div style={{ fontSize:11, color:'var(--text-tertiary)', marginBottom:8 }}>{label}</div>
           <div style={{ display:'flex', flexWrap:'wrap' as const, gap:6, marginBottom:10 }}>
             {PRESET_COLORS.map(c => (
               <div key={c} onClick={() => { onSelect(c); setOpen(false); }} style={{
@@ -182,18 +200,19 @@ const ColorDropdown: React.FC<{
                 border:'2px solid transparent', transition:'border-color 0.1s',
                 boxSizing:'border-box' as const,
               }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.4)'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.5)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
               />
             ))}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ fontSize:11, color:'var(--text-tertiary)' }}>自定义</span>
-            <input type="color" onChange={e => { onSelect(e.target.value); }}
+            <input type="color" onChange={e => { onSelect(e.target.value); setOpen(false); }}
               style={{ width:30, height:22, border:'none', padding:0, background:'none', cursor:'pointer', borderRadius:4 }} />
           </div>
           <div style={{ marginTop:8, paddingTop:8, borderTop:'0.5px solid var(--border)' }}>
-            <div onClick={() => { onSelect(null); setOpen(false); }} style={{ fontSize:12, color:'var(--text-tertiary)', cursor:'pointer', padding:'3px 0' }}
+            <div onClick={() => { onSelect(null); setOpen(false); }}
+              style={{ fontSize:12, color:'var(--text-tertiary)', cursor:'pointer', padding:'3px 0' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)'; }}
             >✕ 清除{label}</div>
@@ -204,7 +223,7 @@ const ColorDropdown: React.FC<{
   );
 };
 
-// ── 主工具栏 ──────────────────────────────────────────────
+
 const FONT_SIZES = ['10','11','12','13','14','15','16','18','20','22','24','28','32','36','48','64'];
 const FONT_FAMILIES: { label: string; value: string }[] = [
   { label:'默认（无衬线）', value:'' },

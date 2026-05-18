@@ -163,12 +163,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
     lastHtml.current = doc.content;
   }, [doc?.content]); // eslint-disable-line
 
-  // 失焦时立即保存（不等待计时器）
+  // 失焦 / 页面隐藏时立即保存
   useEffect(() => {
     if (!editor) return;
     const handleBlur = () => autoSave.flush(documentId);
+    // 页面切换到后台时也立即保存（如 Alt+Tab）
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') autoSave.flush(documentId);
+    };
     editor.on('blur', handleBlur);
-    return () => { editor.off('blur', handleBlur); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      editor.off('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [editor, documentId]);
 
   if (!editor) return null;
