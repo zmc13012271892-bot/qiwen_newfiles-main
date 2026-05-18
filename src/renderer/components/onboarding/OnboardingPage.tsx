@@ -24,7 +24,7 @@ const THEMES = [
   { id: 'warm',   label: '暖棕', preview: '#d4a06a', bg: '#0c0a08' },
 ];
 
-const STEPS = ['欢迎', '职业', '工作区', '外观', '完成'];
+const STEPS = ['欢迎', '职业', '工作区', '完成'];
 
 interface OnboardingPageProps {
   onComplete: () => void;
@@ -303,33 +303,19 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
         {step === 3 && (
           <motion.button
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            onClick={goNext}
-            style={{
-              padding: '11px 40px', borderRadius: 10, cursor: 'pointer',
-              background: 'linear-gradient(135deg, #c8a96e, #9a7040)',
-              color: '#fff', fontSize: 14, fontWeight: 500,
-              border: 'none', fontFamily: 'inherit',
-              boxShadow: '0 4px 20px rgba(200,169,110,0.3)',
-            }}
-          >
-            完成设置
-          </motion.button>
-        )}
-        {step === 4 && (
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             onClick={handleFinish}
             disabled={loading}
             style={{
-              padding: '13px 52px', borderRadius: 11, cursor: 'pointer',
+              padding: '13px 52px', borderRadius: 11, cursor: loading ? 'not-allowed' : 'pointer',
               background: 'linear-gradient(135deg, #c8a96e, #9a7040)',
               color: '#fff', fontSize: 16, fontWeight: 500,
               border: 'none', fontFamily: 'inherit',
               boxShadow: '0 4px 28px rgba(200,169,110,0.4)',
               display: 'flex', alignItems: 'center', gap: 8,
+              opacity: loading ? 0.8 : 1,
             }}
           >
-            {loading ? '正在初始化...' : '进入启文 →'}
+            {loading ? '正在初始化...' : '开始使用启文 →'}
           </motion.button>
         )}
       </div>
