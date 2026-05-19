@@ -418,79 +418,78 @@ const AppInner: React.FC = () => {
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
-    // ── 最终判断规则：数据库里有工作区 = 用过了；没有 = 新用户 ──
-    // 这比任何 localStorage/ipc flag 都可靠，不会被旧数据干扰
-    const needsOnboarding = async (): Promise<boolean> => {
-      try {
-        const workspaces = await ipc.invoke<any[]>('workspaces:list');
-        // 有工作区 = 用过了，不需要引导
-        if (Array.isArray(workspaces) && workspaces.length > 0) return false;
-        return true;
-      } catch {
-        // ipc 调用失败时，保守处理：认为是新用户，显示引导页
-        return true;
-      }
-    };
-
-    // 1. 尝试恢复会话（token 或本地账号）
+    // 1. 恢复用户会话
     let authed = false;
-    try {
-      await dispatch(refreshAccessToken()).unwrap();
-      authed = true;
-    } catch {}
-
+    try { await dispatch(refreshAccessToken()).unwrap(); authed = true; } catch {}
     if (!authed) {
       try {
-        const localProfile = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
-        if (localProfile?.id) {
-          dispatch(setLocalMode(localProfile));
-          authed = true;
-        }
+        const p = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
+        if (p?.id) { dispatch(setLocalMode(p)); authed = true; }
       } catch {}
     }
+    if (!authed) dispatch(setLocalMode(undefined));
 
-    // 没有会话 → 以本地模式运行
-    if (!authed) {
-      dispatch(setLocalMode(undefined));
+    // 2. 判断是否需要引导页
+    // 优先用 localStorage（同步，不依赖IPC/DB）
+    const localDone = (() => {
+      try { return localStorage.getItem('qiwen_onboarding_done') === '1'; } catch { return false; }
+    })();
+
+    if (localDone) {
+      // localStorage 确认完成过引导 → 直接进 app
+      setStage('app');
+      return;
     }
 
-    // 2. 核心判断：数据库里有没有工作区
-    const isNew = await needsOnboarding();
-    if (isNew) {
-      // 没有工作区 = 全新用户或重置后，必须走引导页
+    // localStorage 没有标记 → 再查数据库工作区
+    try {
+      const workspaces = await ipc.invoke<any[]>('workspaces:list');
+      if (Array.isArray(workspaces) && workspaces.length > 0) {
+        // 数据库有工作区 → 补写 localStorage → 进 app
+        try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
+        setStage('app');
+      } else {
+        setStage('onboarding');
+      }
+    } catch {
+      // IPC 完全失败 → 新用户，显示引导页
       setStage('onboarding');
-    } else {
-      // 有工作区 = 用过了，直接进入 app
-      setStage('app');
     }
   }, [dispatch]);
+
 
   // 配置 autoSave + 关闭前保存
   useEffect(() => {
     autoSave.configure({
-      interval: 500,  // 500ms 自动保存，尽可能减少数据丢失
+      interval: 500,
       onSave:  (id) => dispatch(setSaving({ id, saving: true })),
       onSaved: (id) => dispatch(setSaving({ id, saving: false })),
     });
 
-    // 监听 Electron 主进程发来的关闭信号
-    // 在真正关闭之前，flush 所有未保存内容，然后通知 main 可以关闭了
     const api = (window as any).electronAPI;
-    if (api?.onMenuAction) {
-      const handleBeforeClose = async () => {
-        try {
-          await autoSave.flushAll();
-        } catch {}
-        // 通知主进程保存完成，可以关闭了
-        // 用 api.send() 发送单向信号给主进程（preload 已暴露此方法）
-        try { api.send('flush-complete'); } catch {}
-      };
-      api.onMenuAction('app-before-close', handleBeforeClose);
-      return () => {
-        try { api.removeMenuAction('app-before-close', handleBeforeClose); } catch {}
-      };
-    }
+    if (!api) return;
+
+    // 主进程发来关闭信号 → flush 所有文档 → 通知主进程可以关闭
+    const handleBeforeClose = async () => {
+      try { await autoSave.flushAll(); } catch {}
+      try { api.send('flush-complete'); } catch {}
+    };
+    api.onMenuAction('app-before-close', handleBeforeClose);
+
+    // 页面隐藏（Alt+Tab 等）→ 立即 flush
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'hidden') {
+        try { await autoSave.flushAll(); } catch {}
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      try { api.removeMenuAction('app-before-close', handleBeforeClose); } catch {}
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [dispatch]);
+
 
   // 登录/本地模式后加载数据
   useEffect(() => {
