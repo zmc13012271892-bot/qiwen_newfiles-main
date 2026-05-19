@@ -84,18 +84,14 @@ function registerDocumentHandlers() {
         parts.push('updated_at = ?');
         vals.push(now);
         vals.push(id);
-        const updStmt = db.prepare(`UPDATE documents SET ${parts.join(', ')} WHERE id = ?`);
-        updStmt.run(vals);
-        updStmt.free();
+        const updStmt = db.prepare(`UPDATE documents SET ${parts.join(', ')} WHERE id = ?`); updStmt.run(vals); updStmt.free();
       }
 
       if (content !== undefined) {
         const delStmt = db.prepare('DELETE FROM document_contents WHERE document_id = ?');
-        delStmt.run([id]);
-        delStmt.free();
+        delStmt.run([id]); delStmt.free();
         const insStmt = db.prepare('INSERT INTO document_contents (document_id, content, updated_at) VALUES (?, ?, ?)');
-        insStmt.run([id, content, now]);
-        insStmt.free();
+        insStmt.run([id, content, now]); insStmt.free();
 
         // Auto-save version every 5 minutes
         const versionStmt = db.prepare(`
@@ -109,12 +105,8 @@ function registerDocumentHandlers() {
           const doc = titleStmt.get([id]);
           titleStmt.free();
           
-          const verStmt = db.prepare(`
-            INSERT INTO document_versions (id, document_id, content, title, word_count, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `);
-          verStmt.run([uuidv4(), id, content, doc?.title || '', wordCount || 0, now]);
-          verStmt.free();
+          const verStmt = db.prepare(`INSERT INTO document_versions (id, document_id, content, title, word_count, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
+          verStmt.run([uuidv4(), id, content, doc?.title || '', wordCount || 0, now]); verStmt.free();
         }
       }
 
