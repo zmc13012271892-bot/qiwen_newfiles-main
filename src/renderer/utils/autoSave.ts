@@ -11,7 +11,7 @@ class AutoSaveManager {
   configure(opts: { interval?: number; onSave?: (id: string) => void; onSaved?: (id: string) => void }) {
     if (opts.interval !== undefined) this.interval = opts.interval;
     if (opts.onSave) this.onSaveCb = opts.onSave;
-    if (opts.onSaved) this.onSavedCb = opts.onSavedCb;
+    if (opts.onSaved) this.onSavedCb = opts.onSaved;
   }
 
   schedule(id: string, content: string) {
