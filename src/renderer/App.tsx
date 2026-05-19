@@ -31,45 +31,6 @@ import { PluginsView } from './plugins/PluginsView';
 
 type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
 
-// ── 检查 onboardingDone 的统一函数 ───────────────────────
-// 同时检查 ipc settings 和 localStorage，任意一个为 true 即认为已完成
-function checkOnboardingDone(): boolean {
-  // 优先读 localStorage（同步、始终可用，不依赖数据库初始化）
-  try {
-    if (localStorage.getItem('qiwen_onboarding_done') === '1') return true;
-  } catch {}
-  return false;
-}
-
-// 异步从 ipc 补充检查（用于 splash 后的二次验证）
-async function checkOnboardingDoneAsync(): Promise<boolean> {
-  // 先同步检查
-  if (checkOnboardingDone()) return true;
-  // 再异步检查 ipc（DB里可能有）
-  try {
-    const d = await ipc.invoke<any>('settings:get', { key: 'onboardingDone' });
-    if (d === true || d === 'true' || d === 1) {
-      // 同步写入 localStorage 作为缓存
-      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
-      return true;
-    }
-  } catch {}
-  return false;
-}
-
-// 清除引导状态（用于调试/重置）
-async function resetOnboardingDone(): Promise<void> {
-  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: false }); } catch {}
-  try { localStorage.removeItem('qiwen_onboarding_done'); } catch {}
-}
-
-// ── 标记 onboardingDone 的统一函数 ──────────────────────
-async function markOnboardingDone(): Promise<void> {
-  // localStorage 先写（同步、立即生效）
-  try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
-  // ipc 再写（异步，用于跨设备/数据库持久化）
-  try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
-}
 
 // ── 文档库视图 ────────────────────────────────────────────
 const LibraryView: React.FC = () => {
@@ -418,41 +379,22 @@ const AppInner: React.FC = () => {
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
-    // 1. 恢复用户会话
-    let authed = false;
-    try { await dispatch(refreshAccessToken()).unwrap(); authed = true; } catch {}
-    if (!authed) {
-      try {
-        const p = await ipc.invoke<any>('settings:get', { key: 'localProfile' });
-        if (p?.id) { dispatch(setLocalMode(p)); authed = true; }
-      } catch {}
-    }
-    if (!authed) dispatch(setLocalMode(undefined));
+    // 恢复用户会话
+    try { await dispatch(refreshAccessToken()).unwrap(); } catch {}
+    const p = await ipc.invoke<any>('settings:get', { key: 'localProfile' }).catch(() => null);
+    if (p?.id) dispatch(setLocalMode(p));
+    else dispatch(setLocalMode(undefined));
 
-    // 2. 判断是否需要引导页
-    // 优先用 localStorage（同步，不依赖IPC/DB）
-    const localDone = (() => {
-      try { return localStorage.getItem('qiwen_onboarding_done') === '1'; } catch { return false; }
-    })();
-
-    if (localDone) {
-      // localStorage 确认完成过引导 → 直接进 app
-      setStage('app');
-      return;
-    }
-
-    // localStorage 没有标记 → 再查数据库工作区
+    // 判断是否首次使用：只看数据库里有没有工作区
+    // 不依赖 localStorage（可能因旧版本残留导致判断错误）
     try {
       const workspaces = await ipc.invoke<any[]>('workspaces:list');
       if (Array.isArray(workspaces) && workspaces.length > 0) {
-        // 数据库有工作区 → 补写 localStorage → 进 app
-        try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
         setStage('app');
       } else {
         setStage('onboarding');
       }
     } catch {
-      // IPC 完全失败 → 新用户，显示引导页
       setStage('onboarding');
     }
   }, [dispatch]);
@@ -608,10 +550,7 @@ const AppInner: React.FC = () => {
             transition={{ duration: 0.4 }}
             style={{ flex: 1, height: '100vh' }}
           >
-            <OnboardingPage onComplete={async () => {
-              // OnboardingPage.handleFinish 已写入 ipc settings
-              // 这里额外写 localStorage 确保双重保险
-              await markOnboardingDone();
+            <OnboardingPage onComplete={() => {
               setStage('app');
             }} />
           </motion.div>
