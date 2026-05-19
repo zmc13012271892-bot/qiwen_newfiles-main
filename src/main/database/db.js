@@ -277,6 +277,6 @@ function closeDb() {
   }
 }
 
-setInterval(saveDatabase, 5000);
+setInterval(saveDatabase, 2000);
 
 module.exports = { initDatabase, getDb, closeDb, saveDatabase };
