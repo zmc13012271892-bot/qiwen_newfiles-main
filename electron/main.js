@@ -12,10 +12,16 @@ let mainWindow = null;
 let db = null;
 
 // ── 数据库 + IPC 全部注册 ─────────────────────────────────
+let closeDb = null;
+let saveDatabase = null;
+
 async function initDB() {
   try {
     log.info('Starting DB initialization...');
-    const { initDatabase } = require('../src/main/database/db');
+    const dbModule = require('../src/main/database/db');
+    const { initDatabase } = dbModule;
+    closeDb = dbModule.closeDb;
+    saveDatabase = dbModule.saveDatabase;
     db = await initDatabase();
     log.info('Database initialized successfully');
 
@@ -100,16 +106,18 @@ function createWindow() {
       mainWindow.webContents.send('app-before-close');
     }
 
-    // 超时兜底：3秒后强制关闭
+    // 超时兜底：5秒后强制保存并关闭
     const forceClose = setTimeout(() => {
-      log.warn('Save timeout, force closing');
+      log.warn('Save timeout, force closing with emergency save');
+      try { if (saveDatabase) saveDatabase(); } catch(e) { log.error(e); }
       isReallyClosing = true;
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     }, 5000);
 
-    // renderer 保存完成后通知
+    // renderer 保存完成后通知 → 再 saveDatabase 一次确保写盘
     ipcMain.once('flush-complete', () => {
       clearTimeout(forceClose);
+      try { if (saveDatabase) saveDatabase(); } catch(e) { log.error(e); }
       isReallyClosing = true;
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     });
@@ -207,6 +215,12 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('before-quit', () => { try { db?.close(); } catch(e) { log.error(e); } });
+app.on('before-quit', () => {
+  try {
+    if (saveDatabase) saveDatabase();  // 确保最后一次内存状态写到磁盘
+    if (closeDb) closeDb();
+    else if (db) db.close();
+  } catch(e) { log.error('Error on quit:', e); }
+});
 process.on('uncaughtException', (err) => log.error('Uncaught:', err));
 process.on('unhandledRejection', (r) => log.error('Rejection:', r));
