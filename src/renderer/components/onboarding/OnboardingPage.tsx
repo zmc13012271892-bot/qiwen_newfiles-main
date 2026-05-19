@@ -46,7 +46,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
     if (loading) return;
     setLoading(true);
     try {
-      // 创建工作区
+      // 创建工作区（这是判断是否完成引导的唯一依据）
       const ws = await dispatch(createWorkspace({
         name: workspaceName || '我的工作区',
         profession: selectedProfession,
@@ -58,16 +58,12 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
       const professionPlugins = getPluginsForProfession(selectedProfession);
       dispatch(setPlugins(professionPlugins));
 
-      // 写入完成标记 — localStorage 先写，保证下次启动能读到
-      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
+      // 写入设置（失败不影响流程）
       try { await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme }); } catch {}
-      try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
 
       onComplete();
     } catch (err) {
       console.error('Onboarding error:', err);
-      // 即使出错也写入 localStorage 并进入 app
-      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
       onComplete();
     } finally {
       setLoading(false);
