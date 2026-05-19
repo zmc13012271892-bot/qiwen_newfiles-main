@@ -127,6 +127,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
       dispatch(updateStats({ wordCount: cn + en, charCount: text.length }));
       dispatch(setDocumentContent({ id: documentId, content: html }));
       dispatch(markTabDirty({ id: documentId, dirty: true }));
+      // 立即发起保存（500ms 防抖），不等定时器积累
       autoSave.schedule(documentId, html);
       onContentChange?.(html);
     },
@@ -163,20 +164,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ documentId, read
     lastHtml.current = doc.content;
   }, [doc?.content]); // eslint-disable-line
 
-  // 失焦 / 页面隐藏时立即保存
+  // 失焦时立即保存当前文档
   useEffect(() => {
     if (!editor) return;
     const handleBlur = () => autoSave.flush(documentId);
-    // 页面切换到后台时也立即保存（如 Alt+Tab）
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') autoSave.flush(documentId);
-    };
     editor.on('blur', handleBlur);
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      editor.off('blur', handleBlur);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
+    return () => { editor.off('blur', handleBlur); };
   }, [editor, documentId]);
 
   if (!editor) return null;
