@@ -14,9 +14,10 @@ let db = null;
 // ── 数据库 + IPC 全部注册 ─────────────────────────────────
 async function initDB() {
   try {
+    log.info('Starting DB initialization...');
     const { initDatabase } = require('../src/main/database/db');
     db = await initDatabase();
-    log.info('Database initialized');
+    log.info('Database initialized successfully');
 
     const { registerDocumentHandlers }  = require('../src/main/ipc/documents');
     const { registerWorkspaceHandlers } = require('../src/main/ipc/workspaces');
@@ -27,9 +28,15 @@ async function initDB() {
     registerWorkspaceHandlers();
     registerSettingsHandlers();
     registerReferenceHandlers();
-    log.info('All IPC handlers registered');
+    log.info('All IPC handlers registered successfully');
+    return true;
   } catch (err) {
     log.error('DB init failed:', err);
+    // 主进程弹窗提示，让用户知道出了问题
+    const { dialog } = require('electron');
+    dialog.showErrorBox('启文启动失败', 
+      `数据库初始化失败，请重新安装应用。\n\n错误：${err.message}`);
+    return false;
   }
 }
 
@@ -98,7 +105,7 @@ function createWindow() {
       log.warn('Save timeout, force closing');
       isReallyClosing = true;
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
-    }, 3000);
+    }, 5000);
 
     // renderer 保存完成后通知
     ipcMain.once('flush-complete', () => {
