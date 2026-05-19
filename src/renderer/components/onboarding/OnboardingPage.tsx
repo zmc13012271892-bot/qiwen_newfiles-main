@@ -43,30 +43,37 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
   const goPrev = () => { setDirection(-1); setStep(s => s - 1); };
 
   const handleFinish = async () => {
+    if (loading) return;
     setLoading(true);
     try {
+      // 创建工作区
       const ws = await dispatch(createWorkspace({
-        name: workspaceName,
+        name: workspaceName || '我的工作区',
         profession: selectedProfession,
         icon: PROFESSIONS.find(p => p.id === selectedProfession)?.icon || '📁',
       })).unwrap();
       dispatch(setActiveWorkspace(ws.id));
-      // ── 根据职业初始化插件 ────────────────────────────────
+
+      // 初始化插件
       const professionPlugins = getPluginsForProfession(selectedProfession);
       dispatch(setPlugins(professionPlugins));
-      // ── 写入完成标记（localStorage 优先，立即同步生效）──
+
+      // 写入完成标记 — localStorage 先写，保证下次启动能读到
       try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
       try { await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme }); } catch {}
       try { await ipc.invoke('settings:set', { key: 'onboardingDone', value: true }); } catch {}
+
       onComplete();
     } catch (err) {
-      console.error('Onboarding finish error:', err);
-      // 即使出错也尝试标记完成并进入 app
+      console.error('Onboarding error:', err);
+      // 即使出错也写入 localStorage 并进入 app
+      try { localStorage.setItem('qiwen_onboarding_done', '1'); } catch {}
       onComplete();
     } finally {
       setLoading(false);
     }
   };
+
 
   const slides = [
     // Step 0 — Welcome
