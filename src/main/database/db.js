@@ -8,8 +8,9 @@ let db = null;
 let SQL = null;
 
 function getDbPath() {
-  const userDataPath = app.getPath('userData');
-  const dbDir = path.join(userDataPath, 'data');
+  // 固定使用 appData/qiwen/data，不依赖 productName（避免开发/生产路径不一致）
+  const appData = app.getPath('appData');
+  const dbDir = path.join(appData, 'qiwen', 'data');
   if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
   return path.join(dbDir, 'qiwen.db');
 }
