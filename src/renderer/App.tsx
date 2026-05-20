@@ -385,15 +385,10 @@ const AppInner: React.FC = () => {
     if (p?.id) dispatch(setLocalMode(p));
     else dispatch(setLocalMode(undefined));
 
-    // 判断是否首次使用：只看数据库里有没有工作区
-    // 不依赖 localStorage（可能因旧版本残留导致判断错误）
+    // 判断是否首次使用：用主进程直接查DB的结果（最可靠）
     try {
-      const workspaces = await ipc.invoke<any[]>('workspaces:list');
-      if (Array.isArray(workspaces) && workspaces.length > 0) {
-        setStage('app');
-      } else {
-        setStage('onboarding');
-      }
+      const isFirstRun = await ipc.invoke<boolean>('app:is-first-run');
+      setStage(isFirstRun ? 'onboarding' : 'app');
     } catch {
       setStage('onboarding');
     }
