@@ -257,9 +257,14 @@ function seedDefaultData() {
 
 function saveDatabase() {
   if (db) {
-    const data = db.export();
-    const dbPath = getDbPath();
-    fs.writeFileSync(dbPath, Buffer.from(data));
+    try {
+      const data = db.export();
+      const dbPath = getDbPath();
+      fs.writeFileSync(dbPath, Buffer.from(data));
+      log.info('[saveDatabase] wrote', data.length, 'bytes to', dbPath);
+    } catch (err) {
+      log.error('[saveDatabase] FAILED:', err);
+    }
   }
 }
 
