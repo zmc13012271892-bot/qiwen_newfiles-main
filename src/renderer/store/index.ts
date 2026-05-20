@@ -10,6 +10,7 @@ import settingsReducer from './slices/settingsSlice';
 import referencesReducer from './slices/referencesSlice';
 import pluginsReducer from './slices/pluginsSlice';
 import aiReducer from './slices/aiSlice';
+import templatesReducer from './slices/templatesSlice';
 import authReducer from './slices/authSlice';
 
 const appPersistConfig = {
