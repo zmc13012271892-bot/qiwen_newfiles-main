@@ -34,6 +34,23 @@ async function initDB() {
     registerSettingsHandlers();
     registerReferenceHandlers();
     log.info('All IPC handlers registered successfully');
+
+    // ── 首次运行判断（直接在主进程查DB，最可靠）─────────────
+    ipcMain.handle('app:is-first-run', () => {
+      try {
+        const d = dbModule.getDb();
+        const stmt = d.prepare('SELECT COUNT(*) as c FROM workspaces');
+        const row = stmt.get();
+        stmt.free();
+        const count = row ? row.c : 0;
+        log.info('app:is-first-run workspace count:', count);
+        return count === 0;
+      } catch (e) {
+        log.error('app:is-first-run error:', e);
+        return true; // 出错时保守处理，显示引导页
+      }
+    });
+
     return true;
   } catch (err) {
     log.error('DB init failed:', err);
