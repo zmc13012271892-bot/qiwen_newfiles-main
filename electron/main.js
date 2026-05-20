@@ -39,12 +39,13 @@ async function initDB() {
     ipcMain.handle('app:is-first-run', () => {
       try {
         const d = dbModule.getDb();
-        const stmt = d.prepare('SELECT COUNT(*) as c FROM workspaces');
-        const row = stmt.get();
+        // 用 stmt.all() 查所有工作区，比 COUNT 更可靠（避免列名歧义）
+        const stmt = d.prepare('SELECT id FROM workspaces LIMIT 1');
+        const rows = stmt.all();
         stmt.free();
-        const count = row ? row.c : 0;
+        const count = rows.length;
         log.info('app:is-first-run workspace count:', count);
-        return count === 0;
+        return count === 0; // true = 新用户，显示引导页
       } catch (e) {
         log.error('app:is-first-run error:', e);
         return true; // 出错时保守处理，显示引导页
