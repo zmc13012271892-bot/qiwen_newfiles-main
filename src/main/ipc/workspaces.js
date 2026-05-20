@@ -1,3 +1,4 @@
+const log = require('electron-log');
 const { ipcMain } = require('electron');
 const { getDb, saveDatabase } = require('../database/db');
 const { v4: uuidv4 } = require('uuid');
@@ -8,6 +9,7 @@ function registerWorkspaceHandlers() {
     const stmt = db.prepare('SELECT * FROM workspaces ORDER BY created_at ASC');
     const result = stmt.all();
     stmt.free();
+    log.info('[workspaces:list] returning', result.length, 'workspaces');
     return result;
   });
 
@@ -20,17 +22,25 @@ function registerWorkspaceHandlers() {
   });
 
   ipcMain.handle('workspaces:create', (_, { name, description = '', icon = '📁', color = '#c8a96e', profession = 'general' }) => {
+    log.info('[workspaces:create] creating workspace:', name);
     const db = getDb();
     const id = uuidv4();
     const now = Date.now();
 
-    db.prepare(`
-      INSERT INTO workspaces (id, name, description, icon, color, profession, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run([id, name, description, icon, color, profession, now, now]);
-    saveDatabase();
-
-    return { id, name, description, icon, color, profession, createdAt: now, updatedAt: now };
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO workspaces (id, name, description, icon, color, profession, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run([id, name, description, icon, color, profession, now, now]);
+      stmt.free();
+      saveDatabase();
+      log.info('[workspaces:create] SUCCESS, id:', id);
+      return { id, name, description, icon, color, profession, createdAt: now, updatedAt: now };
+    } catch (err) {
+      log.error('[workspaces:create] FAILED:', err);
+      throw err;
+    }
   });
 
   ipcMain.handle('workspaces:update', (_, { id, name, description, icon, color }) => {

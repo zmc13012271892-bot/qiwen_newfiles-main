@@ -1,3 +1,4 @@
+const log = require('electron-log');
 const { ipcMain } = require('electron');
 const { getDb, saveDatabase } = require('../database/db');
 const { v4: uuidv4 } = require('uuid');
@@ -68,6 +69,7 @@ function registerDocumentHandlers() {
 
   // Update document content
   ipcMain.handle('documents:update', (_, { id, title, content, tags }) => {
+    log.info('[documents:update] called, id:', id, 'contentLen:', content?.length);
     const db = getDb();
     const now = Date.now();
 
@@ -118,7 +120,9 @@ function registerDocumentHandlers() {
       }
       db.run('COMMIT');
       saveDatabase();
+      log.info('[documents:update] saved successfully, id:', id);
     } catch (err) {
+      log.error('[documents:update] FAILED, id:', id, 'error:', err);
       db.run('ROLLBACK');
       throw err;
     }
