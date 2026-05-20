@@ -28,6 +28,7 @@ import { SearchModal } from './components/modals/SearchModal';
 import './styles/globals.css';
 import { SettingsView } from './components/settings/SettingsView';
 import { PluginsView } from './plugins/PluginsView';
+import { TemplatesView } from './components/templates/TemplatesView';
 
 type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
 
@@ -280,6 +281,7 @@ const MainContent: React.FC = () => {
   if (activeView === 'workbench') return <EditorArea />;
   if (activeView === 'settings') return <SettingsView />;
   if (activeView === 'plugins') return <PluginsView />;
+  if (activeView === 'templates') return <TemplatesView />;
 
   const labels: Record<string, {title: string; icon: string; desc: string}> = {
     ai:        { title: 'AI 助手',  icon: '✨', desc: 'AI 写作助手功能即将上线' },
