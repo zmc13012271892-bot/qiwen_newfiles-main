@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RootState, AppDispatch } from '../../store';
 import {
-  fetchTemplates, createTemplate, deleteTemplate, updateTemplate, useTemplate,
+  fetchTemplates, createTemplate, deleteTemplate, updateTemplate, useTemplate as applyTemplate,
   setActiveCategory, Template,
 } from '../../store/slices/templatesSlice';
 import { openTab, setView } from '../../store/slices/appSlice';
@@ -194,7 +194,7 @@ export const TemplatesView: React.FC = () => {
 
   const handleUse = useCallback(async (template:Template) => {
     if (!activeWorkspaceId) return;
-    const content = await dispatch(useTemplate(template.id)).unwrap();
+    const content = await dispatch(applyTemplate(template.id)).unwrap();
     const doc = await dispatch(createDocument({workspaceId:activeWorkspaceId,title:template.title,content})).unwrap();
     dispatch(openTab({documentId:doc.id,title:doc.title}));
     dispatch(setView('workbench'));
