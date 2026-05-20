@@ -61,10 +61,13 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
       // 写入设置（失败不影响流程）
       try { await ipc.invoke('settings:set', { key: 'theme', value: selectedTheme }); } catch {}
 
+      // 只有工作区创建成功才进入 app
       onComplete();
     } catch (err) {
-      console.error('Onboarding error:', err);
-      onComplete();
+      // 创建工作区失败：不进入 app，让用户重试
+      // 避免工作区未创建就进入 app 导致下次启动再次显示引导页
+      console.error('Onboarding createWorkspace failed:', err);
+      alert('初始化失败，请重试。如果问题持续，请重新启动应用。');
     } finally {
       setLoading(false);
     }
