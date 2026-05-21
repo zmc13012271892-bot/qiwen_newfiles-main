@@ -59,20 +59,26 @@ async function initDB() {
 
     ipcMain.handle('ai:chat-stream', async (event, { messages, apiKey, model }) => {
       return new Promise((resolve, reject) => {
+        const effectiveModel = model || 'doubao-seed-2-0-pro-260215';
+        const effectiveKey = apiKey || 'ark-0f0fd51c-1395-45bd-9df0-29a195257d96-5ab55';
+        
         const body = JSON.stringify({
-          model: model || 'doubao-seed-2-0-pro-260215',
-          max_tokens: 1024,
-          stream: false, // 主进程用非流式，结果通过 IPC 一次返回
+          model: effectiveModel,
+          max_tokens: 2048,
+          stream: false,
           messages,
         });
+
+        log.info('[ai:chat-stream] Requesting model:', effectiveModel);
 
         const options = {
           hostname: 'ark.cn-beijing.volces.com',
           path: '/api/v3/chat/completions',
           method: 'POST',
+          timeout: 60000, // 60秒超时
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${effectiveKey}`,
             'Content-Length': Buffer.byteLength(body),
           },
         };
@@ -82,13 +88,30 @@ async function initDB() {
           res.on('data', chunk => { data += chunk; });
           res.on('end', () => {
             try {
+              log.info('[ai:chat-stream] Response status:', res.statusCode);
               const json = JSON.parse(data);
-              if (json.error) reject(new Error(json.error.message || '请求失败'));
-              else resolve(json.choices?.[0]?.message?.content || '');
-            } catch(e) { reject(e); }
+              if (json.error) {
+                log.error('[ai:chat-stream] API error:', json.error);
+                reject(new Error(json.error.message || `API错误: ${JSON.stringify(json.error)}`));
+              } else {
+                const content = json.choices?.[0]?.message?.content || '';
+                log.info('[ai:chat-stream] Success, content length:', content.length);
+                resolve(content);
+              }
+            } catch(e) {
+              log.error('[ai:chat-stream] Parse error:', e, 'Raw data:', data.slice(0, 200));
+              reject(new Error('响应解析失败: ' + e.message));
+            }
           });
         });
-        req.on('error', reject);
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('请求超时（60秒），请检查网络连接'));
+        });
+        req.on('error', (err) => {
+          log.error('[ai:chat-stream] Request error:', err);
+          reject(new Error('网络请求失败: ' + err.message));
+        });
         req.write(body);
         req.end();
       });
