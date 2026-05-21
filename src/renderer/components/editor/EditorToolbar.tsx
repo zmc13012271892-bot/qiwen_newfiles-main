@@ -283,12 +283,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
   const handleSaveAs = () => {
     const ed = getEditor();
     if (!ed || !activeDoc) return;
-    const html = \`<!DOCTYPE html>
+    const title = activeDoc.title || '无标题';
+    const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>\${activeDoc.title || '无标题'}</title>
+<title>${title}</title>
 <style>
   body { font-family: 'Noto Serif SC', Georgia, serif; max-width: 800px; margin: 40px auto; line-height: 1.8; color: #1a1a1a; padding: 0 24px; }
   h1, h2, h3, h4, h5, h6 { font-weight: 400; margin-top: 1.5em; }
@@ -302,15 +303,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
 </style>
 </head>
 <body>
-<h1>\${activeDoc.title || '无标题'}</h1>
-\${ed.getHTML()}
+<h1>${title}</h1>
+${ed.getHTML()}
 </body>
-</html>\`;
+</html>`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = \`\${activeDoc.title || '无标题'}.html\`;
+    a.download = `${title}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
