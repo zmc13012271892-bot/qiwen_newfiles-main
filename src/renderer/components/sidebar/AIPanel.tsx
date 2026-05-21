@@ -51,12 +51,26 @@ const MODEL_STORAGE = 'qiwen_doubao_model';
 const BUILTIN_API_KEY = 'ark-0f0fd51c-1395-45bd-9df0-29a195257d96-5ab55';
 const BUILTIN_MODEL   = 'doubao-seed-2-0-pro-260215';
 
-function getApiKey(): string {
-  try { return localStorage.getItem(KEY_STORAGE) || BUILTIN_API_KEY; } catch { return BUILTIN_API_KEY; }
+// 兼容 Electron 和 Web 环境的存储方案
+function safeGetItem(key: string): string | null {
+  try {
+    // 优先使用 sessionStorage（Electron 中更可靠）
+    const v = sessionStorage.getItem(key);
+    if (v !== null) return v;
+    return localStorage.getItem(key);
+  } catch { return null; }
 }
-function saveApiKey(k: string) { try { localStorage.setItem(KEY_STORAGE, k); } catch {} }
-function getModel(): string { try { return localStorage.getItem(MODEL_STORAGE) || BUILTIN_MODEL; } catch { return BUILTIN_MODEL; } }
-function saveModel(m: string) { try { localStorage.setItem(MODEL_STORAGE, m); } catch {} }
+function safeSetItem(key: string, value: string) {
+  try { sessionStorage.setItem(key, value); } catch {}
+  try { localStorage.setItem(key, value); } catch {}
+}
+
+function getApiKey(): string {
+  try { return safeGetItem(KEY_STORAGE) || BUILTIN_API_KEY; } catch { return BUILTIN_API_KEY; }
+}
+function saveApiKey(k: string) { try { safeSetItem(KEY_STORAGE, k); } catch {} }
+function getModel(): string { try { return safeGetItem(MODEL_STORAGE) || BUILTIN_MODEL; } catch { return BUILTIN_MODEL; } }
+function saveModel(m: string) { try { safeSetItem(MODEL_STORAGE, m); } catch {} }
 
 // ── 流式调用 Anthropic API ────────────────────────────────────
 // 通过 Electron 主进程代理 AI 请求（绕过渲染进程 CORS 限制）
@@ -87,7 +101,7 @@ async function streamChat(
 // ── 设置面板 ─────────────────────────────────────────────────
 const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   // 只显示用户自定义的 Key，不暴露内置 Key
-  const [key, setKey] = useState(() => { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; } });
+  const [key, setKey] = useState(() => { try { return safeGetItem(KEY_STORAGE) || ''; } catch { return ''; } });
   const [model, setModel] = useState(getModel);
   const [show, setShow] = useState(false);
 
@@ -95,6 +109,7 @@ const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (key.trim()) {
       saveApiKey(key.trim());   // 有值：保存用户自定义 Key
     } else {
+      try { sessionStorage.removeItem(KEY_STORAGE); } catch {}
       try { localStorage.removeItem(KEY_STORAGE); } catch {} // 清空：回退到内置 Key
     }
     saveModel(model);
