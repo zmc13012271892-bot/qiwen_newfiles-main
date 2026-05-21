@@ -164,12 +164,41 @@ function createWindow() {
     : `file://${path.join(__dirname, '../build/index.html')}`;
 
   mainWindow.loadURL(startURL);
+
+  // 兜底：8秒内若 ready-to-show 未触发，强制显示窗口（防止白屏卡死）
+  const showFallbackTimer = setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      log.warn('ready-to-show timeout, force showing window');
+      mainWindow.show();
+      mainWindow.center();
+    }
+  }, 8000);
+
   mainWindow.once('ready-to-show', () => {
+    clearTimeout(showFallbackTimer);
     // 确保不是最大化状态再显示
     if (mainWindow.isMaximized()) mainWindow.unmaximize();
     mainWindow.show();
     mainWindow.center();
     if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
+  });
+
+  // 捕获渲染进程崩溃，防止白屏无响应
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    log.error('Renderer process gone:', details.reason, details.exitCode);
+    dialog.showErrorBox('启文崩溃', `渲染进程异常退出 (${details.reason})，请重新启动应用。`);
+  });
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    log.error('Page failed to load:', errorCode, errorDescription, validatedURL);
+    if (!isDev) {
+      // 生产环境加载失败：尝试重新加载一次
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          log.info('Retrying page load...');
+          mainWindow.loadURL(startURL);
+        }
+      }, 1000);
+    }
   });
   // ── 关闭前等待 renderer 把未保存内容写入 DB ──────────────
   let isReallyClosing = false;
@@ -419,7 +448,13 @@ function setupAutoUpdater() {
 
 // ── 启动 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  await initDB();
+  const dbOk = await initDB();
+  if (!dbOk) {
+    // DB 初始化失败已在 initDB 里弹出错误框，直接退出
+    log.error('DB init failed, quitting');
+    app.quit();
+    return;
+  }
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
