@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { setRightPanelTab, toggleRightPanel } from '../../store/slices/appSlice';
 import { PluginSidebarPanel } from '../../plugins/PluginSidebarPanel';
+import { AIPanel } from './AIPanel';
 
 interface RightPanelProps {
   documentId?: string;
@@ -77,7 +78,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
+      <div style={{ flex: 1, overflowY: rightPanelTab === 'ai' ? 'hidden' : 'auto', scrollbarWidth: 'none', display: 'flex', flexDirection: 'column' }}>
 
         {/* OUTLINE */}
         {rightPanelTab === 'outline' && (
@@ -173,46 +174,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ documentId }) => {
 
         {/* AI */}
         {rightPanelTab === 'ai' && (
-          <div style={{ padding: 16 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.8px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 10 }}>快速操作</div>
-            {[
-              { icon: '✦', title: '继续写作', desc: '从当前位置延伸内容' },
-              { icon: '⟳', title: '改写润色', desc: '提升语言表达质量' },
-              { icon: '◎', title: '提炼摘要', desc: '生成结构化摘要' },
-              { icon: '⊕', title: '补充引用', desc: '匹配相关文献资料' },
-            ].map(c => (
-              <div key={c.title} style={{
-                display: 'flex', alignItems: 'center', gap: 9,
-                padding: '9px 11px', borderRadius: 9, marginBottom: 7, cursor: 'pointer',
-                border: '0.5px solid var(--border)', background: 'var(--bg-surface2)',
-                transition: 'all 0.22s', fontSize: 13,
-              }}
-                onMouseOver={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(200,169,110,0.3)'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(200,169,110,0.06)'; }}
-                onMouseOut={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-surface2)'; }}
-              >
-                <div style={{
-                  width: 24, height: 24, borderRadius: 7,
-                  background: 'var(--accent-bg)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12,
-                  color: 'var(--accent)',
-                }}>
-                  {c.icon}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: 13 }}>{c.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>{c.desc}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{
-              marginTop: 12, display: 'flex', alignItems: 'center', gap: 9,
-              background: 'var(--bg-surface3)', borderRadius: 9, padding: '9px 12px',
-              border: '0.5px solid var(--border)', cursor: 'text',
-            }}>
-              <span style={{ fontSize: 12.5, color: 'var(--text-tertiary)', flex: 1 }}>向 AI 提问...</span>
-              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', background: 'rgba(255,255,255,0.06)', padding: '2px 5px', borderRadius: 4, fontFamily: 'monospace' }}>↵</span>
-            </div>
-          </div>
+          <AIPanel documentContent={doc?.content ?? ''} />
         )}
       </div>
     </div>
