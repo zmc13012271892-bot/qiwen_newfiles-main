@@ -395,7 +395,6 @@ const AppInner: React.FC = () => {
   const [stage, setStage] = useState<AppStage>('splash');
 
   // ── Splash 结束后的主流程 ─────────────────────────────
-  // 关键：只检查一次 onboardingDone，不依赖多个异步竞态
   const handleSplashDone = useCallback(async () => {
     await dispatch(loadSettings());
 
@@ -405,19 +404,18 @@ const AppInner: React.FC = () => {
     if (p?.id) dispatch(setLocalMode(p));
     else dispatch(setLocalMode(undefined));
 
-    // 判断是否首次使用：用主进程直接查DB的结果（最可靠）
+    // 判断是否首次使用：直接查工作区列表（最可靠，workspaces:list 是最简单的判断）
     try {
-      const isFirstRun = await ipc.invoke<boolean>('app:is-first-run');
-      setStage(isFirstRun ? 'onboarding' : 'app');
+      const ws = await ipc.invoke<any[]>('workspaces:list');
+      const isNew = !Array.isArray(ws) || ws.length === 0;
+      setStage(isNew ? 'onboarding' : 'app');
     } catch {
-      // IPC失败时，尝试通过工作区列表判断
+      // 兜底：尝试 is-first-run，如果也失败则显示引导页让用户重新初始化
       try {
-        const ws = await ipc.invoke<any[]>('workspaces:list');
-        const isNew = !Array.isArray(ws) || ws.length === 0;
-        setStage(isNew ? 'onboarding' : 'app');
+        const isFirstRun = await ipc.invoke<boolean>('app:is-first-run');
+        setStage(isFirstRun ? 'onboarding' : 'app');
       } catch {
-        // 兜底：直接进入app，避免引导页反复显示
-        setStage('app');
+        setStage('onboarding');
       }
     }
   }, [dispatch]);
@@ -464,18 +462,18 @@ const AppInner: React.FC = () => {
     }
   }, [isAuthenticated, isLocalMode, dispatch]);
 
-  // 持久化 tabs 恢复后，重新加载各 tab 对应的文档内容
+  // 持久化 tabs 恢复后，等 isLocalMode 就绪再重新加载文档内容
   const tabs = useSelector((s: RootState) => s.app.tabs);
   const openDocuments = useSelector((s: RootState) => s.documents.openDocuments);
   useEffect(() => {
-    if (stage !== 'app') return;
-    // 检查每个 tab 是否已有文档内容，没有则重新加载
+    // 必须等 stage='app' 且本地模式已初始化才加载，避免 DB 未就绪时请求失败
+    if (stage !== 'app' || !isLocalMode) return;
     tabs.forEach(tab => {
       if (!openDocuments[tab.documentId]) {
         dispatch(fetchDocument(tab.documentId));
       }
     });
-  }, [stage, tabs.length]); // eslint-disable-line
+  }, [stage, isLocalMode, tabs.length]); // eslint-disable-line
 
   // 退出登录 → 跳回登录页
   // clearAuth 会把 isAuthenticated 设为 false，但 isLocalMode 保持 true
