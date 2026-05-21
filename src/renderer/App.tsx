@@ -8,7 +8,7 @@ import { RootState, AppDispatch } from './store';
 import { refreshAccessToken, setLocalMode } from './store/slices/authSlice';
 import { loadSettings } from './store/slices/settingsSlice';
 import { fetchWorkspaces } from './store/slices/workspacesSlice';
-import { fetchDocuments, createDocument, deleteDocument } from './store/slices/documentsSlice';
+import { fetchDocuments, fetchDocument, createDocument, deleteDocument } from './store/slices/documentsSlice';
 import { fetchReferences, createReference, deleteReference } from './store/slices/referencesSlice';
 import { openTab, setView } from './store/slices/appSlice';
 import { ipc } from './utils/ipc';
@@ -410,7 +410,15 @@ const AppInner: React.FC = () => {
       const isFirstRun = await ipc.invoke<boolean>('app:is-first-run');
       setStage(isFirstRun ? 'onboarding' : 'app');
     } catch {
-      setStage('onboarding');
+      // IPC失败时，尝试通过工作区列表判断
+      try {
+        const ws = await ipc.invoke<any[]>('workspaces:list');
+        const isNew = !Array.isArray(ws) || ws.length === 0;
+        setStage(isNew ? 'onboarding' : 'app');
+      } catch {
+        // 兜底：直接进入app，避免引导页反复显示
+        setStage('app');
+      }
     }
   }, [dispatch]);
 
@@ -455,6 +463,19 @@ const AppInner: React.FC = () => {
       dispatch(fetchWorkspaces());
     }
   }, [isAuthenticated, isLocalMode, dispatch]);
+
+  // 持久化 tabs 恢复后，重新加载各 tab 对应的文档内容
+  const tabs = useSelector((s: RootState) => s.app.tabs);
+  const openDocuments = useSelector((s: RootState) => s.documents.openDocuments);
+  useEffect(() => {
+    if (stage !== 'app') return;
+    // 检查每个 tab 是否已有文档内容，没有则重新加载
+    tabs.forEach(tab => {
+      if (!openDocuments[tab.documentId]) {
+        dispatch(fetchDocument(tab.documentId));
+      }
+    });
+  }, [stage, tabs.length]); // eslint-disable-line
 
   // 退出登录 → 跳回登录页
   // clearAuth 会把 isAuthenticated 设为 false，但 isLocalMode 保持 true
