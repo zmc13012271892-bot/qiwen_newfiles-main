@@ -47,9 +47,15 @@ function insertToEditor(text: string) {
 const KEY_STORAGE = 'qiwen_doubao_apikey';
 const MODEL_STORAGE = 'qiwen_doubao_model';
 
-function getApiKey(): string { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; } }
+// 内置默认 Key，用户自定义 Key 优先级更高
+const BUILTIN_API_KEY = 'ark-0f0fd51c-1395-45bd-9df0-29a195257d96-5ab55';
+const BUILTIN_MODEL   = 'doubao-seed-2-0-pro-260215';
+
+function getApiKey(): string {
+  try { return localStorage.getItem(KEY_STORAGE) || BUILTIN_API_KEY; } catch { return BUILTIN_API_KEY; }
+}
 function saveApiKey(k: string) { try { localStorage.setItem(KEY_STORAGE, k); } catch {} }
-function getModel(): string { try { return localStorage.getItem(MODEL_STORAGE) || 'doubao-seed-1-6-flash-250615'; } catch { return 'doubao-seed-1-6-flash-250615'; } }
+function getModel(): string { try { return localStorage.getItem(MODEL_STORAGE) || BUILTIN_MODEL; } catch { return BUILTIN_MODEL; } }
 function saveModel(m: string) { try { localStorage.setItem(MODEL_STORAGE, m); } catch {} }
 
 // ── 流式调用 Anthropic API ────────────────────────────────────
@@ -107,12 +113,17 @@ async function streamChat(
 
 // ── 设置面板 ─────────────────────────────────────────────────
 const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [key, setKey] = useState(getApiKey);
+  // 只显示用户自定义的 Key，不暴露内置 Key
+  const [key, setKey] = useState(() => { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; } });
   const [model, setModel] = useState(getModel);
   const [show, setShow] = useState(false);
 
   const handleSave = () => {
-    saveApiKey(key.trim());
+    if (key.trim()) {
+      saveApiKey(key.trim());   // 有值：保存用户自定义 Key
+    } else {
+      try { localStorage.removeItem(KEY_STORAGE); } catch {} // 清空：回退到内置 Key
+    }
     saveModel(model);
     onClose();
   };
@@ -138,7 +149,7 @@ const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             type={show ? 'text' : 'password'}
             value={key}
             onChange={e => setKey(e.target.value)}
-            placeholder="火山方舟 API Key（从控制台获取）"
+            placeholder="留空使用内置 Key，或填入你自己的 Key"
             style={{ ...inputS, paddingRight: 32 }}
           />
           <button onClick={() => setShow(v => !v)} style={{
@@ -152,12 +163,12 @@ const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>模型</div>
-        <select value={model} onChange={e => saveModel(e.target.value) || setModel(e.target.value)}
+        <select value={model} onChange={e => { saveModel(e.target.value); setModel(e.target.value); }}
           style={{ ...inputS, appearance: 'none' as const }}>
-          <option value="doubao-seed-1-6-flash-250615">豆包 Seed 1.6 Flash（免费·快速）</option>
-          <option value="doubao-seed-1-6-thinking-250615">豆包 Seed 1.6 Thinking（免费·推理）</option>
+          <option value="doubao-seed-2-0-pro-260215">Doubao Seed 2.0 Pro（推荐）</option>
+          <option value="doubao-seed-1-6-flash-250615">豆包 Seed 1.6 Flash（快速）</option>
+          <option value="doubao-seed-1-6-thinking-250615">豆包 Seed 1.6 Thinking（推理）</option>
           <option value="doubao-1-5-pro-32k-250115">豆包 1.5 Pro 32K（均衡）</option>
-          <option value="doubao-1-5-lite-32k-250115">豆包 1.5 Lite 32K（轻量）</option>
         </select>
       </div>
 
@@ -167,7 +178,7 @@ const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       </div>
 
       <div style={{ marginTop: 8, fontSize: 10.5, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
-        Key 仅存储本地，不经过任何服务器。
+        内置 Key 开箱即用。填写自己的 Key 后优先使用，清空则恢复内置。
         <a href="https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey" target="_blank" rel="noreferrer"
           style={{ color: 'var(--accent)', textDecoration: 'none', marginLeft: 4 }}>获取豆包 API Key →</a>
       </div>
@@ -300,7 +311,7 @@ export const AIPanel: React.FC<{ documentContent?: string }> = ({ documentConten
     }
   }, []);
 
-  const noKey = !apiKey;
+  const noKey = false; // 内置 Key 保底，始终可用
 
   // ── 样式常量 ─────────────────────────────────────────────
   const tabBtnS = (active: boolean): React.CSSProperties => ({
