@@ -248,7 +248,7 @@ export const TemplatesView: React.FC = () => {
               background:activeCategory===cat.id?'rgba(200,169,110,0.15)':'var(--bg-surface2)',
               color:activeCategory===cat.id?'var(--accent)':'var(--text-secondary)',
               border:activeCategory===cat.id?'0.5px solid rgba(200,169,110,0.3)':'0.5px solid var(--border)',
-}>
+            }}>
               {cat.icon} {cat.label}
             </button>
           ))}
