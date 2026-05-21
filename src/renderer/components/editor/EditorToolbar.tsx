@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { toggleRightPanel, setRightPanelTab } from '../../store/slices/appSlice';
 import { setFindOpen } from '../../store/slices/editorSlice';
+import { updateDocument } from '../../store/slices/documentsSlice';
+import { autoSave } from '../../utils/autoSave';
 import { EditorMode } from './EditorArea';
 
 // ── 获取编辑器实例 ────────────────────────────────────────
@@ -250,12 +252,88 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
   const [tick, setTick] = useState(0);
   const [dialog, setDialog] = useState<null|'link'|'image'|'table'|'video'>(null);
   const [lineSpacing, setLineSpacing] = useState('1.8');
+  const [saveNotice, setSaveNotice] = useState<null|'saved'|'saving'>(null);
+
+  // 获取当前文档ID
+  const activeTabId = useSelector((s: RootState) => s.app.activeTabId);
+  const tabs = useSelector((s: RootState) => s.app.tabs);
+  const openDocuments = useSelector((s: RootState) => s.documents.openDocuments);
+  const activeTab = tabs.find(t => t.id === activeTabId);
+  const activeDoc = activeTab ? openDocuments[activeTab.documentId] : null;
+
+  // 手动保存
+  const handleSave = async () => {
+    if (!activeDoc) return;
+    setSaveNotice('saving');
+    try {
+      await autoSave.flush(activeDoc.id);
+      const ed = getEditor();
+      if (ed) {
+        const html = ed.getHTML();
+        await dispatch(updateDocument({ id: activeDoc.id, content: html }));
+      }
+      setSaveNotice('saved');
+      setTimeout(() => setSaveNotice(null), 1800);
+    } catch {
+      setSaveNotice(null);
+    }
+  };
+
+  // 另存为（导出HTML文件）
+  const handleSaveAs = () => {
+    const ed = getEditor();
+    if (!ed || !activeDoc) return;
+    const html = \`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>\${activeDoc.title || '无标题'}</title>
+<style>
+  body { font-family: 'Noto Serif SC', Georgia, serif; max-width: 800px; margin: 40px auto; line-height: 1.8; color: #1a1a1a; padding: 0 24px; }
+  h1, h2, h3, h4, h5, h6 { font-weight: 400; margin-top: 1.5em; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  blockquote { border-left: 3px solid #c8a96e; padding-left: 16px; color: #666; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #ddd; padding: 8px 12px; }
+  img { max-width: 100%; border-radius: 8px; }
+  a { color: #c8a96e; }
+</style>
+</head>
+<body>
+<h1>\${activeDoc.title || '无标题'}</h1>
+\${ed.getHTML()}
+</body>
+</html>\`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = \`\${activeDoc.title || '无标题'}.html\`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   // 订阅编辑器事务，让工具栏按钮状态实时更新
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 200);
     return () => clearInterval(interval);
   }, []);
+
+  // Ctrl+S 快捷键保存
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [activeDoc]); // eslint-disable-line
 
   const e = getEditor();
   const is = (name: string, attrs?: any): boolean => {
@@ -570,6 +648,49 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
           <DSep />
           <DItem onClick={() => { if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); else document.exitFullscreen().catch(()=>{}); }} shortcut="F11">⛶ 全屏模式</DItem>
         </ToolDropdown>
+
+        {/* 保存 / 另存为 */}
+        <Sep />
+        <button
+          onClick={handleSave}
+          title="保存 Ctrl+S"
+          style={{
+            height: 30, padding: '0 12px', borderRadius: 7,
+            border: '0.5px solid rgba(200,169,110,0.35)',
+            background: saveNotice === 'saved' ? 'rgba(82,201,122,0.12)' : 'rgba(200,169,110,0.1)',
+            color: saveNotice === 'saved' ? 'rgba(82,201,122,0.9)' : '#c8a96e',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 12.5, fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(200,169,110,0.2)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = saveNotice === 'saved' ? 'rgba(82,201,122,0.12)' : 'rgba(200,169,110,0.1)'; }}
+        >
+          {saveNotice === 'saving' ? (
+            <div style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid #c8a96e', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+          ) : saveNotice === 'saved' ? (
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          ) : (
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          )}
+          {saveNotice === 'saved' ? '已保存' : '保存'}
+        </button>
+        <button
+          onClick={handleSaveAs}
+          title="另存为 HTML"
+          style={{
+            height: 30, padding: '0 12px', borderRadius: 7,
+            border: '0.5px solid var(--border)',
+            background: 'var(--bg-surface3)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 12.5, fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface3)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          另存为
+        </button>
 
         <div style={{ flex:1, minWidth:8 }} />
 

@@ -31,15 +31,23 @@ export const EditorArea: React.FC = () => {
     }
   }, [activeTab?.documentId]); // eslint-disable-line
 
-  // 文档加载超时保护：5秒还没内容就关掉这个tab
+  // 文档加载超时保护：15秒还没内容就重试一次，再等5秒关掉这个tab
   useEffect(() => {
     if (!activeTab) return;
-    const timer = setTimeout(() => {
+    let retried = false;
+    const retryTimer = setTimeout(() => {
+      if (!openDocuments[activeTab.documentId]) {
+        // 先尝试重新加载
+        retried = true;
+        dispatch(fetchDocument(activeTab.documentId));
+      }
+    }, 5000);
+    const closeTimer = setTimeout(() => {
       if (!openDocuments[activeTab.documentId]) {
         dispatch(closeTab(activeTab.id));
       }
-    }, 5000);
-    return () => clearTimeout(timer);
+    }, 15000);
+    return () => { clearTimeout(retryTimer); clearTimeout(closeTimer); };
   }, [activeTab?.id]); // eslint-disable-line
 
   const handleTitleChange = useCallback(async (title: string) => {
