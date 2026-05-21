@@ -101,7 +101,11 @@
     "uninstallerIcon": "assets/icon.ico",
     "differentialPackage": true,
     "unicode": true,
-    "language": "2052"
+    "language": "2052",
+    "installerLanguages": [
+      "zh_CN"
+    ],
+    "artifactName": "QiWen-Setup-${version}.exe"
   },
   "portable": {
     "artifactName": "启文-${version}-Portable.exe"
@@ -137,5 +141,6 @@
   "extends": null,
   "extraMetadata": {
     "main": "electron/main.js"
-  }
+  },
+  "executableName": "QiWen"
 }
