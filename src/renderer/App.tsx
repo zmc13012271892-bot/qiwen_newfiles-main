@@ -28,6 +28,7 @@ import { SearchModal } from './components/modals/SearchModal';
 import './styles/globals.css';
 import { SettingsView } from './components/settings/SettingsView';
 import { PluginsView } from './plugins/PluginsView';
+import { AIPanel } from './components/sidebar/AIPanel';
 import { TemplatesView } from './components/templates/TemplatesView';
 
 type AppStage = 'splash' | 'auth' | 'onboarding' | 'app';
@@ -273,6 +274,22 @@ const ReferencesView: React.FC = () => {
 };
 
 // ── 主视图路由 ────────────────────────────────────────────
+// ── AI 助手全页视图 ──────────────────────────────────────────
+const AIAssistantView: React.FC = () => (
+  <div style={{
+    flex: 1, display: 'flex', flexDirection: 'column' as const,
+    height: '100%', background: 'var(--bg-primary)', overflow: 'hidden',
+  }}>
+    <div style={{ padding: '24px 32px 0', flexShrink: 0, borderBottom: '0.5px solid var(--border)' }}>
+      <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>AI 助手</div>
+      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>基于豆包大模型，开箱即用</div>
+    </div>
+    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' as const }}>
+      <AIPanel />
+    </div>
+  </div>
+);
+
 const MainContent: React.FC = () => {
   const activeView = useSelector((s: RootState) => s.app.activeView);
 
@@ -282,6 +299,7 @@ const MainContent: React.FC = () => {
   if (activeView === 'settings') return <SettingsView />;
   if (activeView === 'plugins') return <PluginsView />;
   if (activeView === 'templates') return <TemplatesView />;
+  if (activeView === 'ai') return <AIAssistantView />;
 
   const labels: Record<string, {title: string; icon: string; desc: string}> = {
     ai:        { title: 'AI 助手',  icon: '✨', desc: 'AI 写作助手功能即将上线' },
