@@ -279,43 +279,38 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ isSaving, mode, on
     }
   };
 
-  // 另存为（导出HTML文件）
-  const handleSaveAs = () => {
+  // 另存为（导出 .docx 文件，通过 Electron 主进程）
+  const handleSaveAs = async () => {
     const ed = getEditor();
     if (!ed || !activeDoc) return;
     const title = activeDoc.title || '无标题';
-    const html = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title}</title>
-<style>
-  body { font-family: 'Noto Serif SC', Georgia, serif; max-width: 800px; margin: 40px auto; line-height: 1.8; color: #1a1a1a; padding: 0 24px; }
-  h1, h2, h3, h4, h5, h6 { font-weight: 400; margin-top: 1.5em; }
-  code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-  pre { background: #f4f4f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
-  blockquote { border-left: 3px solid #c8a96e; padding-left: 16px; color: #666; margin: 12px 0; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #ddd; padding: 8px 12px; }
-  img { max-width: 100%; border-radius: 8px; }
-  a { color: #c8a96e; }
-</style>
-</head>
-<body>
-<h1>${title}</h1>
-${ed.getHTML()}
-</body>
-</html>`;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const api = (window as any).electronAPI;
+
+    if (api?.invoke) {
+      // Electron 环境：调用主进程打开系统保存对话框，导出 docx
+      try {
+        await api.invoke('documents:export-docx', {
+          id: activeDoc.id,
+          title,
+          html: ed.getHTML(),
+        });
+      } catch (err: any) {
+        console.error('导出 docx 失败:', err);
+        alert('导出失败：' + (err?.message || '未知错误'));
+      }
+    } else {
+      // 降级：浏览器环境导出 HTML（保留兼容性）
+      const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${title}</title></head><body><h1>${title}</h1>${ed.getHTML()}</body></html>`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
   };
 
   // 订阅编辑器事务，让工具栏按钮状态实时更新
