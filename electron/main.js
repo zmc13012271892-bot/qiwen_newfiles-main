@@ -337,14 +337,10 @@ function setupIPC() {
   function htmlToWordXml(html, title) {
     // 去除 HTML 标签，保留文本和基本换行
     const stripTags = (s) => s
-      .replace(/<br\s*\/?>/gi, '
-')
-      .replace(/<\/p>/gi, '
-')
-      .replace(/<\/h[1-6]>/gi, '
-')
-      .replace(/<\/li>/gi, '
-')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
       .replace(/<[^>]+>/g, '')
       .replace(/&nbsp;/g, ' ')
       .replace(/&lt;/g, '<')
@@ -353,8 +349,7 @@ function setupIPC() {
       .replace(/&quot;/g, '"');
 
     const text = stripTags(html || '');
-    const paragraphs = text.split('
-').filter(l => l.trim());
+    const paragraphs = text.split('\n').filter(l => l.trim());
 
     const xmlEscape = (s) => s
       .replace(/&/g, '&amp;')
