@@ -7,7 +7,7 @@ import {
   setActiveCategory, Template,
 } from '../../store/slices/templatesSlice';
 import { openTab, setView } from '../../store/slices/appSlice';
-import { createDocument } from '../../store/slices/documentsSlice';
+import { createDocument, updateDocument } from '../../store/slices/documentsSlice';
 
 const CATEGORIES = [
   { id: 'all',       label: '全部',    icon: '🗂' },
@@ -175,7 +175,7 @@ const EditModal: React.FC<{template:Template|null; onSave:(d:any)=>void; onClose
 // ── 主视图 ───────────────────────────────────────────────────
 export const TemplatesView: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { items, loading, activeCategory } = useSelector((s: RootState) => (s as any).templates);
+  const { items, loading, activeCategory } = useSelector((s: RootState) => s.templates);
   const activeWorkspaceId = useSelector((s: RootState) => s.app.activeWorkspaceId);
   const [search, setSearch] = useState('');
   const [previewTemplate, setPreviewTemplate] = useState<Template|null>(null);
@@ -194,9 +194,15 @@ export const TemplatesView: React.FC = () => {
 
   const handleUse = useCallback(async (template:Template) => {
     if (!activeWorkspaceId) return;
-    const content = await dispatch(applyTemplate(template.id)).unwrap();
-    const doc = await dispatch(createDocument({workspaceId:activeWorkspaceId,title:template.title,content})).unwrap();
-    dispatch(openTab({documentId:doc.id,title:doc.title}));
+    // 1. 获取模板内容
+    const templateContent = await dispatch(applyTemplate(template.id)).unwrap();
+    // 2. 创建空文档（createDocument 不接受 content 参数）
+    const doc = await dispatch(createDocument({workspaceId:activeWorkspaceId, title:template.title})).unwrap();
+    // 3. 写入模板内容
+    if (templateContent) {
+      await dispatch(updateDocument({id: doc.id, content: templateContent})).unwrap();
+    }
+    dispatch(openTab({documentId:doc.id, title:doc.title}));
     dispatch(setView('workbench'));
   }, [dispatch, activeWorkspaceId]);
 
@@ -242,7 +248,7 @@ export const TemplatesView: React.FC = () => {
               background:activeCategory===cat.id?'rgba(200,169,110,0.15)':'var(--bg-surface2)',
               color:activeCategory===cat.id?'var(--accent)':'var(--text-secondary)',
               border:activeCategory===cat.id?'0.5px solid rgba(200,169,110,0.3)':'0.5px solid var(--border)',
-            } as any}>
+}>
               {cat.icon} {cat.label}
             </button>
           ))}
