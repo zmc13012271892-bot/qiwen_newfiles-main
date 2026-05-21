@@ -178,8 +178,22 @@ async function initDatabase() {
   try {
     if (!SQL) {
         log.info('Initializing sql.js...');
-        const sqlJsPath = path.join(process.resourcesPath, 'sql.js', 'dist');
-        log.info(`SQL.js path: ${sqlJsPath}`);
+        // 尝试多个路径，兼容不同安装场景（含中文路径的 Program Files）
+        const candidatePaths = [
+          path.join(process.resourcesPath, 'sql.js', 'dist'),
+          path.join(app.getAppPath(), '..', 'sql.js', 'dist'),
+          path.join(path.dirname(app.getPath('exe')), 'resources', 'sql.js', 'dist'),
+          path.join(__dirname, '..', '..', 'node_modules', 'sql.js', 'dist'),
+        ];
+        let sqlJsPath = candidatePaths[0];
+        for (const p of candidatePaths) {
+          if (fs.existsSync(path.join(p, 'sql-wasm.wasm'))) {
+            sqlJsPath = p;
+            log.info(`Found sql.js wasm at: ${p}`);
+            break;
+          }
+        }
+        log.info(`Using SQL.js path: ${sqlJsPath}`);
         SQL = await initSqlJs({
           locateFile: file => path.join(sqlJsPath, file)
         });
