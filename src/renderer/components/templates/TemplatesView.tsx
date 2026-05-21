@@ -194,8 +194,9 @@ export const TemplatesView: React.FC = () => {
 
   const handleUse = useCallback(async (template:Template) => {
     if (!activeWorkspaceId) return;
-    // 1. 获取模板内容
-    const templateContent = await dispatch(applyTemplate(template.id)).unwrap();
+    // 1. 获取模板内容（useTemplate 返回 { id, content }）
+    const result = await dispatch(applyTemplate(template.id)).unwrap();
+    const templateContent: string = result.content || '';
     // 2. 创建空文档（createDocument 不接受 content 参数）
     const doc = await dispatch(createDocument({workspaceId:activeWorkspaceId, title:template.title})).unwrap();
     // 3. 写入模板内容
