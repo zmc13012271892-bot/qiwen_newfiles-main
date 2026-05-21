@@ -99,13 +99,10 @@
     "runAfterFinish": true,
     "installerIcon": "assets/icon.ico",
     "uninstallerIcon": "assets/icon.ico",
-    "differentialPackage": true,
     "unicode": true,
     "language": "2052",
-    "installerLanguages": [
-      "zh_CN"
-    ],
-    "artifactName": "QiWen-Setup-${version}.exe"
+    "deleteAppDataOnUninstall": false,
+    "uninstallDisplayName": "启文"
   },
   "portable": {
     "artifactName": "启文-${version}-Portable.exe"
@@ -137,7 +134,7 @@
     ]
   },
   "publish": null,
-  "artifactName": "QiWen-${version}-${os}-${arch}.${ext}",
+  "artifactName": "QiWen-${version}-Setup.exe",
   "extends": null,
   "extraMetadata": {
     "main": "electron/main.js"
