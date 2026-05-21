@@ -16,7 +16,8 @@ import authReducer from './slices/authSlice';
 const appPersistConfig = {
   key: 'qiwen-app',
   storage,
-  whitelist: ['sidebarOpen', 'activeWorkspaceId'],
+  // 持久化 tabs 和 activeTabId，重启后自动恢复已打开的文档标签
+  whitelist: ['sidebarOpen', 'activeWorkspaceId', 'tabs', 'activeTabId', 'activeView'],
 };
 
 // ── plugins 持久化，安装/启用状态跨会话保留 ──────────────
