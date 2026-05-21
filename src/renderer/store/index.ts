@@ -35,6 +35,7 @@ const rootReducer = combineReducers({
   plugins:    persistReducer(pluginsPersistConfig, pluginsReducer),
   ai:         aiReducer,
   auth:       authReducer,
+  templates:  templatesReducer,
 });
 
 export const store = configureStore({
