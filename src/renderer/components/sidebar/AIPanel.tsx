@@ -59,7 +59,7 @@ function getModel(): string { try { return localStorage.getItem(MODEL_STORAGE) |
 function saveModel(m: string) { try { localStorage.setItem(MODEL_STORAGE, m); } catch {} }
 
 // ── 流式调用 Anthropic API ────────────────────────────────────
-// 豆包 API 兼容 OpenAI 格式，用标准 SSE 流式
+// 通过 Electron 主进程代理 AI 请求（绕过渲染进程 CORS 限制）
 async function streamChat(
   messages: { role: string; content: string }[],
   apiKey: string,
@@ -67,47 +67,20 @@ async function streamChat(
   onChunk: (text: string) => void,
   signal: AbortSignal
 ): Promise<void> {
-  const res = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
-    method: 'POST',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      stream: true,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
-    }),
-  });
+  const api = (window as any).electronAPI;
+  if (!api?.invoke) throw new Error('Electron API 不可用');
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
-    throw new Error(err?.error?.message || `HTTP ${res.status}`);
-  }
+  // 主进程用 Node.js https 发请求，没有 CORS 限制
+  const result: string = await api.invoke('ai:chat-stream', { messages, apiKey, model });
 
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buf = '';
+  if (signal.aborted) return;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') return;
-      try {
-        const j = JSON.parse(data);
-        // 豆包/OpenAI 格式：choices[0].delta.content
-        const text = j?.choices?.[0]?.delta?.content || '';
-        if (text) onChunk(text);
-      } catch {}
-    }
+  // 模拟流式输出：把完整回复逐字推送
+  const chunkSize = 3;
+  for (let i = 0; i < result.length; i += chunkSize) {
+    if (signal.aborted) return;
+    onChunk(result.slice(i, i + chunkSize));
+    await new Promise(r => setTimeout(r, 16)); // ~60fps
   }
 }
 
