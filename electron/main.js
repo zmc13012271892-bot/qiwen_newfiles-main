@@ -41,17 +41,57 @@ async function initDB() {
     ipcMain.handle('app:is-first-run', () => {
       try {
         const d = dbModule.getDb();
-        // 用 stmt.all() 查所有工作区，比 COUNT 更可靠（避免列名歧义）
+        // sql.js 用 stmt.step() 检查是否有行（stmt.all 不可靠）
         const stmt = d.prepare('SELECT id FROM workspaces LIMIT 1');
-        const rows = stmt.all();
+        const hasWorkspace = stmt.step();
         stmt.free();
-        const count = rows.length;
-        log.info('app:is-first-run workspace count:', count);
-        return count === 0; // true = 新用户，显示引导页
+        log.info('app:is-first-run hasWorkspace:', hasWorkspace);
+        return !hasWorkspace; // false=有工作区=老用户，true=新用户显示引导页
       } catch (e) {
         log.error('app:is-first-run error:', e);
-        return true; // 出错时保守处理，显示引导页
+        return true;
       }
+    });
+
+    // ── AI API 代理（绕过渲染进程 CORS 限制）───────────────
+    const https = require('https');
+    const http  = require('http');
+
+    ipcMain.handle('ai:chat-stream', async (event, { messages, apiKey, model }) => {
+      return new Promise((resolve, reject) => {
+        const body = JSON.stringify({
+          model: model || 'doubao-seed-2-0-pro-260215',
+          max_tokens: 1024,
+          stream: false, // 主进程用非流式，结果通过 IPC 一次返回
+          messages,
+        });
+
+        const options = {
+          hostname: 'ark.cn-beijing.volces.com',
+          path: '/api/v3/chat/completions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Length': Buffer.byteLength(body),
+          },
+        };
+
+        const req = https.request(options, (res) => {
+          let data = '';
+          res.on('data', chunk => { data += chunk; });
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data);
+              if (json.error) reject(new Error(json.error.message || '请求失败'));
+              else resolve(json.choices?.[0]?.message?.content || '');
+            } catch(e) { reject(e); }
+          });
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+      });
     });
 
     return true;
@@ -90,7 +130,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../electron/preload.js'),
-      webSecurity: !isDev,
+      webSecurity: false, // 桌面应用不需要 web 安全限制
     },
   });
 
